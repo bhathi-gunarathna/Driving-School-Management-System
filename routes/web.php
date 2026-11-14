@@ -6,6 +6,15 @@ use App\Livewire\Admin\Coaches\Index;
 use App\Livewire\Admin\Coaches\Create;
 use App\Livewire\Admin\Coaches\Edit;
 use App\Livewire\Admin\Coaches\View as ViewCoach;
+use App\Livewire\Admin\VehicleCategories\Create as CreateVehicleCategory;
+use App\Livewire\Admin\VehicleCategories\Edit as EditVehicleCategory;
+use App\Livewire\Admin\VehicleCategories\Index as VehicleCategoryIndex;
+use App\Livewire\Admin\VehicleCategories\View as ViewVehicleCategory;
+use App\Http\Controllers\Admin\Students\MedicalReportController;
+use App\Livewire\Admin\Students\Create as CreateStudent;
+use App\Livewire\Admin\Students\Edit as EditStudent;
+use App\Livewire\Admin\Students\Index as StudentIndex;
+use App\Livewire\Admin\Students\View as ViewStudent;
 
 
 // Public Routes
@@ -94,6 +103,44 @@ Route::middleware('auth')->group(function () {
             Route::view('/dashboard', 'coach.dashboard')
                 ->name('dashboard');
 
+        });
+
+    /*
+    |--------------------------------------------------------------------------
+    | VEHICLE CATEGORY MANAGEMENT
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:Owner')
+        ->prefix('admin/vehicle-categories')
+        ->name('admin.vehicle-categories.')
+        ->group(function () {
+            Route::middleware('permission:vehicle-categories.manage')->group(function () {
+                Route::get('/create', CreateVehicleCategory::class)->name('create');
+                Route::get('/{category}/edit', EditVehicleCategory::class)->whereNumber('category')->name('edit');
+            });
+
+            Route::middleware('permission:vehicle-categories.view')->group(function () {
+                Route::get('/', VehicleCategoryIndex::class)->name('index');
+                Route::get('/{category}', ViewVehicleCategory::class)->whereNumber('category')->name('view');
+            });
+        });
+
+    Route::middleware('role:Owner')
+        ->prefix('admin/students')
+        ->name('admin.students.')
+        ->group(function () {
+            Route::middleware('permission:students.create')->get('/create', CreateStudent::class)->name('create');
+
+            Route::middleware('permission:students.update')->get('/{student}/edit', EditStudent::class)
+                ->whereNumber('student')->name('edit');
+
+            Route::middleware('permission:students.view_all')->group(function () {
+                Route::get('/', StudentIndex::class)->name('index');
+                Route::get('/{student}/medical-report', MedicalReportController::class)
+                    ->whereNumber('student')->name('medical-report');
+                Route::get('/{student}', ViewStudent::class)->whereNumber('student')->name('view');
+            });
         });
 
 });

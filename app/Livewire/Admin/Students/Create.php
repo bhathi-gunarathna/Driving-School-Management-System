@@ -1,0 +1,169 @@
+<?php
+
+namespace App\Livewire\Admin\Students;
+
+use App\Models\Student;
+use App\Models\VehicleCategory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
+use Throwable;
+
+class Create extends Component
+{
+    use WithFileUploads;
+
+    public string $full_name = '';
+
+    public string $address = '';
+
+    public string $nic_number = '';
+
+    public string $date_of_birth = '';
+
+    public string $contact_number = '';
+
+    public ?TemporaryUploadedFile $medicalReport = null;
+
+    /** @var array<int, int|string> */
+    public array $selectedCategoryIds = [];
+
+    public function mount(): void
+    {
+        $user = auth()->user();
+
+        abort_unless($user?->hasRole('Owner') && $user->can('students.create'), 403);
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'full_name' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:5000'],
+            'nic_number' => ['required', 'string', 'max:30', Rule::unique('students', 'nic_number')],
+            'date_of_birth' => ['required', 'date', 'before:today'],
+            'contact_number' => ['required', 'string', 'max:25'],
+            'medicalReport' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'selectedCategoryIds' => ['required', 'array', 'min:1'],
+            'selectedCategoryIds.*' => ['required', 'integer', 'distinct', 'exists:vehicle_categories,id'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'full_name.required' => 'Enter the student’s full name.',
+            'address.required' => 'Enter the student’s address.',
+            'nic_number.required' => 'Enter the student’s NIC number.',
+            'nic_number.unique' => 'This NIC number is already registered.',
+            'date_of_birth.before' => 'Date of birth must be in the past.',
+            'contact_number.required' => 'Enter a contact number.',
+            'medicalReport.image' => 'Upload a JPG, JPEG, or PNG image.',
+            'medicalReport.mimes' => 'Upload a JPG, JPEG, or PNG image.',
+            'medicalReport.max' => 'The medical report image must not exceed 5 MB.',
+            'selectedCategoryIds.required' => 'Select at least one vehicle category.',
+            'selectedCategoryIds.min' => 'Select at least one vehicle category.',
+            'selectedCategoryIds.*.exists' => 'One of the selected categories is no longer available.',
+        ];
+    }
+
+    public function registerStudent()
+    {
+        $user = auth()->user();
+
+        abort_unless($user?->hasRole('Owner') && $user->can('students.create'), 403);
+
+        $this->full_name = trim($this->full_name);
+        $this->address = trim($this->address);
+        $this->nic_number = strtoupper(trim($this->nic_number));
+        $this->contact_number = trim($this->contact_number);
+
+        $validated = $this->validate();
+        $selectedIds = collect($validated['selectedCategoryIds'])->map(fn ($id) => (int) $id)->unique()->values();
+        $medicalReportPath = null;
+
+        if ($this->medicalReport) {
+            $storedPath = $this->medicalReport->store('medical-reports', 'local');
+
+            if (! is_string($storedPath)) {
+                throw ValidationException::withMessages([
+                    'medicalReport' => 'The medical report could not be stored. Please try again.',
+                ]);
+            }
+
+            $medicalReportPath = $storedPath;
+        }
+
+        try {
+            $student = DB::transaction(function () use ($validated, $selectedIds, $medicalReportPath): Student {
+                $categories = VehicleCategory::active()
+                    ->whereIn('id', $selectedIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($categories->count() !== $selectedIds->count()) {
+                    throw ValidationException::withMessages([
+                        'selectedCategoryIds' => 'A selected category is inactive or unavailable. Refresh the page and choose active categories.',
+                    ]);
+                }
+
+                $student = Student::create([
+                    'student_number' => 'TEMP-'.Str::uuid(),
+                    'full_name' => $validated['full_name'],
+                    'address' => $validated['address'],
+                    'nic_number' => $validated['nic_number'],
+                    'date_of_birth' => $validated['date_of_birth'],
+                    'contact_number' => $validated['contact_number'],
+                    'medical_report_path' => $medicalReportPath,
+                    'status' => Student::STATUS_ACTIVE,
+                ]);
+
+                // The auto-increment ID provides a concurrency-safe unique sequence.
+                $student->student_number = sprintf('DS-%s-%04d', now()->format('Y'), $student->getKey());
+                $student->save();
+
+                foreach ($categories as $category) {
+                    $student->vehicleCategories()->attach($category->getKey(), [
+                        'agreed_fee' => $category->price,
+                        'required_training_hours' => $category->training_hours,
+                        'status' => 'active',
+                    ]);
+                }
+
+                return $student;
+            });
+        } catch (Throwable $exception) {
+            if ($medicalReportPath) {
+                Storage::disk('local')->delete($medicalReportPath);
+            }
+
+            throw $exception;
+        }
+
+        session()->flash('success', 'Student registered successfully.');
+
+        return $this->redirectRoute('admin.students.view', ['student' => $student->getKey()]);
+    }
+
+    public function render()
+    {
+        $categories = VehicleCategory::active()->orderBy('category_code')->get();
+        $selectedCategories = $categories->whereIn('id', $this->selectedCategoryIds);
+
+        $totalFeeCents = $selectedCategories->sum(fn (VehicleCategory $category): int => (int) round((float) $category->price * 100));
+        $totalTrainingHundredths = $selectedCategories->sum(fn (VehicleCategory $category): int => (int) round((float) $category->training_hours * 100));
+
+        return view('livewire.admin.students.create', [
+            'categories' => $categories,
+            'selectedCategories' => $selectedCategories,
+            'totalCourseFee' => number_format($totalFeeCents / 100, 2),
+            'totalTrainingHours' => number_format($totalTrainingHundredths / 100, 2),
+        ])->layout('layouts.admin');
+    }
+}

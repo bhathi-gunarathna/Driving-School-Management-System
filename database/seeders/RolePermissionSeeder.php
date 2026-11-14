@@ -27,6 +27,8 @@ class RolePermissionSeeder extends Seeder
             // Vehicle Categories
             'categories.view',
             'categories.manage',
+            'vehicle-categories.view',
+            'vehicle-categories.manage',
 
             // Payments
             'payments.view',

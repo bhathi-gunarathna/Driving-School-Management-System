@@ -42,10 +42,16 @@ class Index extends Component
 
         abort_unless($user?->hasRole('Owner') && $user->can('coaches.manage'), 403);
 
-        DB::transaction(function () use ($coachId): void {
+        DB::transaction(function () use ($coachId, $user): void {
             $coach = User::role('Coach')
                 ->lockForUpdate()
                 ->findOrFail($coachId);
+
+            abort_if(
+                $coach->is_active && (string) $coach->getKey() === (string) $user->getAuthIdentifier(),
+                403,
+                'You cannot deactivate your own account.'
+            );
 
             $coach->is_active = ! $coach->is_active;
             $coach->save();

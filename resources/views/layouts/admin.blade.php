@@ -58,15 +58,21 @@
 
                     <div class="space-y-1">
 
-                        <a href="#" class="sidebar-link">
-                            <span>♙</span>
-                            <span>Students</span>
-                        </a>
+                        @can('students.view_all')
+                            <a href="{{ route('admin.students.index') }}"
+                               class="sidebar-link {{ request()->routeIs('admin.students.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">♙</span>
+                                <span>Students</span>
+                            </a>
+                        @endcan
 
-                        <a href="#" class="sidebar-link">
-                            <span>▤</span>
-                            <span>Vehicle Categories</span>
-                        </a>
+                        @can('vehicle-categories.view')
+                            <a href="{{ route('admin.vehicle-categories.index') }}"
+                               class="sidebar-link {{ request()->routeIs('admin.vehicle-categories.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">▤</span>
+                                <span>Vehicle Categories</span>
+                            </a>
+                        @endcan
 
                         <a href="#" class="sidebar-link">
                             <span>▣</span>

@@ -137,6 +137,10 @@
                 {{-- Search and Filters --}}
                 <div class="flex flex-col sm:flex-row gap-3">
 
+                    <span wire:loading wire:target="search,statusFilter" class="self-center text-xs text-slate-400">
+                        Updating results…
+                    </span>
+
                     <div class="relative">
 
                         <input
