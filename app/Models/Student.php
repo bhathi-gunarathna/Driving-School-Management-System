@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Student extends Model
 {
@@ -34,5 +36,15 @@ class Student extends Model
         return $this->belongsToMany(VehicleCategory::class, 'student_vehicle_categories')
             ->withPivot(['id', 'agreed_fee', 'required_training_hours', 'status'])
             ->withTimestamps();
+    }
+
+    public function paymentPlan(): HasOne
+    {
+        return $this->hasOne(StudentPaymentPlan::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(StudentPayment::class)->orderByDesc('id');
     }
 }

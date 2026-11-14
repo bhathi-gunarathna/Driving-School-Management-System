@@ -15,6 +15,9 @@ use App\Livewire\Admin\Students\Create as CreateStudent;
 use App\Livewire\Admin\Students\Edit as EditStudent;
 use App\Livewire\Admin\Students\Index as StudentIndex;
 use App\Livewire\Admin\Students\View as ViewStudent;
+use App\Livewire\Admin\Payments\Index as PaymentIndex;
+use App\Livewire\Admin\Payments\Create as CreatePayment;
+use App\Livewire\Admin\Payments\Receipt as PaymentReceipt;
 
 
 // Public Routes
@@ -142,5 +145,14 @@ Route::middleware('auth')->group(function () {
                 Route::get('/{student}', ViewStudent::class)->whereNumber('student')->name('view');
             });
         });
+
+    Route::middleware('role:Owner')->prefix('admin/payments')->name('admin.payments.')->group(function () {
+        Route::middleware('permission:payments.manage')->get('/students/{student}/create', CreatePayment::class)
+            ->whereNumber('student')->name('create');
+        Route::middleware('permission:payments.view')->group(function () {
+            Route::get('/', PaymentIndex::class)->name('index');
+            Route::get('/{payment}/receipt', PaymentReceipt::class)->whereNumber('payment')->name('receipt');
+        });
+    });
 
 });

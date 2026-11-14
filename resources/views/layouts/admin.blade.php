@@ -74,10 +74,12 @@
                             </a>
                         @endcan
 
-                        <a href="#" class="sidebar-link">
-                            <span>▣</span>
-                            <span>Payments</span>
-                        </a>
+                        @can('payments.view')
+                            <a href="{{ route('admin.payments.index') }}" class="sidebar-link {{ request()->routeIs('admin.payments.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">$</span>
+                                <span>Payments</span>
+                            </a>
+                        @endcan
 
                         <a href="#" class="sidebar-link">
                             <span>◷</span>

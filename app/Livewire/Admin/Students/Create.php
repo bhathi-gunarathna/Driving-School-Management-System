@@ -4,6 +4,9 @@ namespace App\Livewire\Admin\Students;
 
 use App\Models\Student;
 use App\Models\VehicleCategory;
+use App\Models\StudentPaymentPlan;
+use App\Services\StudentPaymentService;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -33,11 +36,24 @@ class Create extends Component
     /** @var array<int, int|string> */
     public array $selectedCategoryIds = [];
 
+    public string $paymentPlanType = StudentPaymentPlan::TYPE_FULL;
+
+    public string $advanceAmount = '0.00';
+
+    public string $advancePaymentMethod = 'cash';
+
+    public string $advancePaymentDate = '';
+
+    public string $advanceReference = '';
+
+    public string $advanceNotes = '';
+
     public function mount(): void
     {
         $user = auth()->user();
 
         abort_unless($user?->hasRole('Owner') && $user->can('students.create'), 403);
+        $this->advancePaymentDate = now()->toDateString();
     }
 
     protected function rules(): array
@@ -51,6 +67,12 @@ class Create extends Component
             'medicalReport' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
             'selectedCategoryIds' => ['required', 'array', 'min:1'],
             'selectedCategoryIds.*' => ['required', 'integer', 'distinct', 'exists:vehicle_categories,id'],
+            'paymentPlanType' => ['required', Rule::in([StudentPaymentPlan::TYPE_FULL, StudentPaymentPlan::TYPE_TWO_INSTALLMENTS, StudentPaymentPlan::TYPE_THREE_INSTALLMENTS])],
+            'advanceAmount' => ['required', 'numeric', 'min:0', 'decimal:0,2', 'max:9999999999.99'],
+            'advancePaymentMethod' => ['required', Rule::in(['cash', 'bank_transfer', 'card', 'other'])],
+            'advancePaymentDate' => ['required', 'date', 'before_or_equal:today'],
+            'advanceReference' => ['nullable', 'string', 'max:100'],
+            'advanceNotes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -84,6 +106,9 @@ class Create extends Component
         $this->contact_number = trim($this->contact_number);
 
         $validated = $this->validate();
+        if (Money::toCents($validated['advanceAmount']) > 0) {
+            abort_unless($user->can('payments.manage'), 403);
+        }
         $selectedIds = collect($validated['selectedCategoryIds'])->map(fn ($id) => (int) $id)->unique()->values();
         $medicalReportPath = null;
 
@@ -100,7 +125,7 @@ class Create extends Component
         }
 
         try {
-            $student = DB::transaction(function () use ($validated, $selectedIds, $medicalReportPath): Student {
+            $student = DB::transaction(function () use ($validated, $selectedIds, $medicalReportPath, $user): Student {
                 $categories = VehicleCategory::active()
                     ->whereIn('id', $selectedIds)
                     ->orderBy('id')
@@ -128,11 +153,29 @@ class Create extends Component
                 $student->student_number = sprintf('DS-%s-%04d', now()->format('Y'), $student->getKey());
                 $student->save();
 
+                $totalFeeCents = 0;
                 foreach ($categories as $category) {
+                    $totalFeeCents += Money::toCents((string) $category->price);
                     $student->vehicleCategories()->attach($category->getKey(), [
                         'agreed_fee' => $category->price,
                         'required_training_hours' => $category->training_hours,
                         'status' => 'active',
+                    ]);
+                }
+
+                $advanceCents = Money::toCents($validated['advanceAmount']);
+                if ($advanceCents > $totalFeeCents) {
+                    throw ValidationException::withMessages(['advanceAmount' => 'The advance cannot exceed the total course fee.']);
+                }
+
+                $plan = app(StudentPaymentService::class)->createPlan($student, $totalFeeCents, $validated['paymentPlanType']);
+                if ($advanceCents > 0) {
+                    app(StudentPaymentService::class)->recordPayment($plan->getKey(), $user, [
+                        'amount' => $validated['advanceAmount'],
+                        'payment_date' => $validated['advancePaymentDate'],
+                        'payment_method' => $validated['advancePaymentMethod'],
+                        'reference_number' => $validated['advanceReference'] ?: null,
+                        'notes' => $validated['advanceNotes'] ?: null,
                     ]);
                 }
 
@@ -156,7 +199,7 @@ class Create extends Component
         $categories = VehicleCategory::active()->orderBy('category_code')->get();
         $selectedCategories = $categories->whereIn('id', $this->selectedCategoryIds);
 
-        $totalFeeCents = $selectedCategories->sum(fn (VehicleCategory $category): int => (int) round((float) $category->price * 100));
+        $totalFeeCents = $selectedCategories->sum(fn (VehicleCategory $category): int => Money::toCents((string) $category->price));
         $totalTrainingHundredths = $selectedCategories->sum(fn (VehicleCategory $category): int => (int) round((float) $category->training_hours * 100));
 
         return view('livewire.admin.students.create', [
@@ -164,6 +207,7 @@ class Create extends Component
             'selectedCategories' => $selectedCategories,
             'totalCourseFee' => number_format($totalFeeCents / 100, 2),
             'totalTrainingHours' => number_format($totalTrainingHundredths / 100, 2),
+            'installmentAmounts' => Money::splitCents($totalFeeCents, StudentPaymentPlan::installmentCount($this->paymentPlanType)),
         ])->layout('layouts.admin');
     }
 }

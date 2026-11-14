@@ -32,6 +32,7 @@ class RolePermissionSeeder extends Seeder
 
             // Payments
             'payments.view',
+            'payments.manage',
             'payments.create',
             'payments.update',
 

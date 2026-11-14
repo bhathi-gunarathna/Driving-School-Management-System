@@ -98,8 +98,33 @@
                     <div><dt class="text-xs uppercase tracking-wide text-slate-500">Total Required Training</dt><dd class="mt-1 text-xl font-bold text-slate-900">{{ $totalTrainingHours }} hours</dd></div>
                 </dl>
             @endif
-            <p class="mt-4 text-xs text-slate-500">This records agreed course fees only. Payment collection is handled separately.</p>
+            <p class="mt-4 text-xs text-slate-500">The agreed fee is saved as a snapshot. Planned installments are a schedule; only a recorded receipt counts as a payment.</p>
         </section>
+
+        @can('payments.manage')
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 p-6"><h2 class="text-lg font-bold text-slate-900">Payment Plan & Advance</h2><p class="mt-1 text-sm text-slate-500">Choose a schedule and optionally record money received today.</p></div>
+            <div class="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label for="payment-plan" class="mb-2 block text-sm font-medium text-slate-700">Installment schedule</label>
+                    <select id="payment-plan" wire:model.live="paymentPlanType" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="full_payment">Full payment</option><option value="two_installments">2 installments</option><option value="three_installments">3 installments</option>
+                    </select>
+                    @error('paymentPlanType') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                        @foreach ($installmentAmounts as $index => $amountCents)
+                            <span class="rounded-full bg-slate-100 px-3 py-1.5">Installment {{ $index + 1 }}: {{ number_format($amountCents / 100, 2) }}</span>
+                        @endforeach
+                    </div>
+                </div>
+                <div><label for="advance-amount" class="mb-2 block text-sm font-medium text-slate-700">Advance received</label><input id="advance-amount" type="number" min="0" step="0.01" wire:model="advanceAmount" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"><p class="mt-1 text-xs text-slate-500">Enter 0.00 if no payment is collected now.</p>@error('advanceAmount') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror</div>
+                <div><label for="advance-date" class="mb-2 block text-sm font-medium text-slate-700">Payment date</label><input id="advance-date" type="date" max="{{ now()->toDateString() }}" wire:model="advancePaymentDate" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">@error('advancePaymentDate') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror</div>
+                <div><label for="advance-method" class="mb-2 block text-sm font-medium text-slate-700">Payment method</label><select id="advance-method" wire:model="advancePaymentMethod" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select>@error('advancePaymentMethod') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror</div>
+                <div><label for="advance-reference" class="mb-2 block text-sm font-medium text-slate-700">Reference number <span class="font-normal text-slate-400">(optional)</span></label><input id="advance-reference" type="text" maxlength="100" wire:model="advanceReference" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">@error('advanceReference') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror</div>
+                <div class="md:col-span-2"><label for="advance-notes" class="mb-2 block text-sm font-medium text-slate-700">Notes <span class="font-normal text-slate-400">(optional)</span></label><textarea id="advance-notes" rows="2" maxlength="2000" wire:model="advanceNotes" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"></textarea>@error('advanceNotes') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror</div>
+            </div>
+        </section>
+        @endcan
 
         <div class="flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <a href="{{ route('admin.students.index') }}" class="rounded-xl border border-slate-200 bg-white px-6 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-100">Cancel</a>
