@@ -38,9 +38,7 @@ use App\Livewire\Notifications\Index as NotificationIndex;
 
 
 // Public Routes
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::redirect('/', '/login');
 
 
 // Authenticated Routes
