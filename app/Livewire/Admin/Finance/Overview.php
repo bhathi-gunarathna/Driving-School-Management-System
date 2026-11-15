@@ -40,7 +40,11 @@ class Overview extends Component
             $date = $today->subDays($offset)->toDateString();
             return ['label' => $today->subDays($offset)->format('d M'), 'income' => (float) ($dailyTotals[$date] ?? 0)];
         });
-        $monthExpression = DB::connection()->getDriverName() === 'sqlite' ? "strftime('%Y-%m', payment_date)" : "DATE_FORMAT(payment_date, '%Y-%m')";
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', payment_date)",
+            'pgsql' => "TO_CHAR(payment_date, 'YYYY-MM')",
+            default => "DATE_FORMAT(payment_date, '%Y-%m')",
+        };
         $monthTotals = StudentPayment::query()->whereBetween('payment_date', [$today->subMonthsNoOverflow(11)->startOfMonth()->toDateString(), $today->toDateString()])
             ->selectRaw("{$monthExpression} as report_month, SUM(amount) as income")->groupByRaw($monthExpression)->pluck('income', 'report_month');
         $monthlyTrend = collect(range(11, 0))->map(function (int $offset) use ($today, $monthTotals): array {

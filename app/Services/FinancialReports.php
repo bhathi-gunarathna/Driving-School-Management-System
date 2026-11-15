@@ -47,9 +47,11 @@ class FinancialReports
     /** @param array<string, mixed> $filters */
     public function monthlyIncome(array $filters): \Illuminate\Support\Collection
     {
-        $expression = DB::connection()->getDriverName() === 'sqlite'
-            ? "strftime('%Y-%m', payment_date)"
-            : "DATE_FORMAT(payment_date, '%Y-%m')";
+        $expression = match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', payment_date)",
+            'pgsql' => "TO_CHAR(payment_date, 'YYYY-MM')",
+            default => "DATE_FORMAT(payment_date, '%Y-%m')",
+        };
 
         return $this->payments($filters)->reorder()
             ->selectRaw("{$expression} as report_month, COUNT(id) as transaction_count, SUM(amount) as income")
