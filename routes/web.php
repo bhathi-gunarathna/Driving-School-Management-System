@@ -18,6 +18,10 @@ use App\Livewire\Admin\Students\View as ViewStudent;
 use App\Livewire\Admin\Payments\Index as PaymentIndex;
 use App\Livewire\Admin\Payments\Create as CreatePayment;
 use App\Livewire\Admin\Payments\Receipt as PaymentReceipt;
+use App\Livewire\Admin\Training\Index as TrainingIndex;
+use App\Livewire\Coach\Training\Dashboard as CoachTrainingDashboard;
+use App\Livewire\Coach\Training\Index as CoachTrainingIndex;
+use App\Livewire\Coach\Training\Record as RecordTrainingSession;
 
 
 // Public Routes
@@ -103,8 +107,12 @@ Route::middleware('auth')->group(function () {
         ->name('coach.')
         ->group(function () {
 
-            Route::view('/dashboard', 'coach.dashboard')
+            Route::get('/dashboard', CoachTrainingDashboard::class)
                 ->name('dashboard');
+
+            Route::middleware('permission:training.view_assigned')->get('/training', CoachTrainingIndex::class)->name('training.index');
+            Route::middleware('permission:training.record')->get('/training/enrollments/{enrollment}/record', RecordTrainingSession::class)
+                ->whereNumber('enrollment')->name('training.record');
 
         });
 
@@ -154,5 +162,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/{payment}/receipt', PaymentReceipt::class)->whereNumber('payment')->name('receipt');
         });
     });
+
+    Route::middleware(['role:Owner', 'permission:training.view'])->prefix('admin/training')->name('admin.training.')
+        ->get('/', TrainingIndex::class)->name('index');
 
 });

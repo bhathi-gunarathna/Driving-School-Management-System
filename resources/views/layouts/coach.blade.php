@@ -14,9 +14,9 @@
 
 <body class="bg-slate-50 min-h-screen">
 
-    <header class="bg-slate-950 text-white px-6 py-5 flex justify-between">
+    <header class="bg-slate-950 text-white px-4 py-4 flex items-center justify-between sm:px-6">
 
-        <h1 class="font-bold">Driving School | Coach Portal</h1>
+        <div><h1 class="font-bold">Driving School</h1><a href="{{ route('coach.dashboard') }}" class="text-xs text-slate-300">Coach Training Portal</a></div>
 
         <form method="POST" action="{{ route('logout') }}">
             @csrf
@@ -25,7 +25,8 @@
 
     </header>
 
-    <main class="p-6">
+    <main class="p-4 sm:p-6">
+        {{ $slot ?? '' }}
         @yield('content')
     </main>
 

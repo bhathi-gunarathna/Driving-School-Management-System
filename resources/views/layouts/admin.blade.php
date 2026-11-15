@@ -81,10 +81,12 @@
                             </a>
                         @endcan
 
-                        <a href="#" class="sidebar-link">
-                            <span>◷</span>
-                            <span>Training</span>
-                        </a>
+                        @can('training.view')
+                            <a href="{{ route('admin.training.index') }}" class="sidebar-link {{ request()->routeIs('admin.training.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">T</span>
+                                <span>Training</span>
+                            </a>
+                        @endcan
 
                         <a href="#" class="sidebar-link">
                             <span>▣</span>

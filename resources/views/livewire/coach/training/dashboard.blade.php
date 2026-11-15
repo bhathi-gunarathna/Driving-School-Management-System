@@ -1,0 +1,5 @@
+<div class="mx-auto max-w-5xl space-y-6">
+    <div><h1 class="text-2xl font-bold text-slate-900">Welcome, {{ auth()->user()->name }}</h1><p class="mt-1 text-sm text-slate-500">Your assigned students and training workload.</p></div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">@foreach([['Assigned students',$assignedStudents],['In training',$underway],['Completed hours',$completedHours],['Pending hours',$pendingHours]] as [$title,$value])<div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $title }}</p><p class="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">{{ $value }}</p></div>@endforeach</div>
+    <div class="rounded-2xl border border-blue-100 bg-blue-50 p-5"><h2 class="font-semibold text-slate-900">Training priorities</h2><p class="mt-1 text-sm text-slate-600">Trial scheduling is not yet available. Check your assigned students for remaining training hours.</p><a href="{{ route('coach.training.index') }}" class="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white">View assigned students</a></div>
+</div>

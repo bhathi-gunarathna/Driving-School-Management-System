@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VehicleCategory extends Model
 {
@@ -34,7 +35,13 @@ class VehicleCategory extends Model
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(Student::class, 'student_vehicle_categories')
+            ->using(StudentVehicleCategory::class)
             ->withPivot(['id', 'agreed_fee', 'required_training_hours', 'status'])
             ->withTimestamps();
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(StudentVehicleCategory::class, 'vehicle_category_id');
     }
 }

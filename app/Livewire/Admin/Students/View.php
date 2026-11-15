@@ -6,6 +6,7 @@ use App\Models\Student;
 use App\Models\StudentPaymentPlan;
 use App\Services\StudentPaymentService;
 use App\Support\Money;
+use App\Services\TrainingProgress;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -24,6 +25,9 @@ class View extends Component
 
         $this->student = Student::with([
             'vehicleCategories',
+            'enrollments.vehicleCategory',
+            'enrollments.coachAssignments' => fn ($query) => $query->with('coach')->orderByDesc('id'),
+            'enrollments.trainingSessions' => fn ($query) => $query->with('coach')->orderByDesc('training_date')->orderByDesc('id'),
             'paymentPlan.installments',
             'payments.receivedBy',
         ])->findOrFail($student->getKey());
@@ -36,11 +40,16 @@ class View extends Component
 
         $totalFeeCents = $activeEnrollments->sum(fn ($category) => (int) round((float) $category->pivot->agreed_fee * 100));
         $totalTrainingHundredths = $activeEnrollments->sum(fn ($category) => (int) round((float) $category->pivot->required_training_hours * 100));
+        $trainingProgress = $this->student->enrollments->mapWithKeys(function ($enrollment): array {
+            $enrollment->setAttribute('completed_minutes', $enrollment->trainingSessions->where('status', 'completed')->sum('duration_minutes'));
+            return [$enrollment->getKey() => TrainingProgress::forEnrollment($enrollment)];
+        });
 
         return view('livewire.admin.students.view', [
             'activeEnrollments' => $activeEnrollments,
             'totalAgreedFee' => number_format($totalFeeCents / 100, 2),
             'totalTrainingHours' => number_format($totalTrainingHundredths / 100, 2),
+            'trainingProgress' => $trainingProgress,
         ])->layout('layouts.admin');
     }
 

@@ -39,6 +39,9 @@ class RolePermissionSeeder extends Seeder
             // Training
             'training.view_all',
             'training.view_assigned',
+            'training.view',
+            'training.manage',
+            'training.record',
             'training.create',
             'training.update',
             'training.approve',
@@ -81,8 +84,7 @@ class RolePermissionSeeder extends Seeder
             'dashboard.view',
             'students.view_assigned',
             'training.view_assigned',
-            'training.create',
-            'training.update',
+            'training.record',
             'trials.view_assigned',
             'trials.update_results',
         ]);

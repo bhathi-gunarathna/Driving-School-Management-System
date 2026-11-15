@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Livewire\Coach\Training;
+
+use App\Models\StudentVehicleCategory;
+use App\Models\User;
+use App\Services\TrainingProgress;
+use Illuminate\Database\Eloquent\Builder;
+use Livewire\Component;
+
+class Dashboard extends Component
+{
+    public function mount(): void { $this->authorizeCoach(); }
+    private function authorizeCoach(): User
+    {
+        $user = auth()->user();
+        abort_unless($user?->hasRole('Coach') && $user->is_active && $user->can('training.view_assigned'), 403);
+        return $user;
+    }
+
+    public function render()
+    {
+        $coach = $this->authorizeCoach();
+        $enrollments = StudentVehicleCategory::query()->where('status', 'active')
+            ->whereHas('student', fn (Builder $q) => $q->where('status', 'active'))
+            ->whereHas('coachAssignments', fn (Builder $q) => $q->where('coach_id', $coach->id)->where('status', 'active'))
+            ->withSum(['trainingSessions as completed_minutes' => fn (Builder $q) => $q->where('status', 'completed')], 'duration_minutes')->get();
+        $metrics = $enrollments->map(fn ($enrollment) => TrainingProgress::forEnrollment($enrollment));
+        return view('livewire.coach.training.dashboard', [
+            'assignedStudents' => $enrollments->pluck('student_id')->unique()->count(),
+            'underway' => $metrics->where('status', 'in_progress')->count(),
+            'completedHours' => number_format($metrics->sum('completed_hours'), 2),
+            'pendingHours' => number_format($metrics->sum('remaining_hours'), 2),
+        ])->layout('layouts.coach');
+    }
+}
