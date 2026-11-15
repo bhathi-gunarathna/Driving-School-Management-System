@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Payments;
 
 use App\Models\StudentPayment;
+use App\Models\SystemSetting;
 use App\Support\Money;
 use Livewire\Component;
 
@@ -28,6 +29,7 @@ class Receipt extends Component
         return view('livewire.admin.payments.receipt', [
             'balanceBefore' => Money::fromCents(max(0, $agreedCents - $previousCents)),
             'balanceAfter' => Money::fromCents(max(0, $agreedCents - $previousCents - $currentCents)),
+            'schoolSettings' => SystemSetting::current(),
         ])->layout('layouts.admin');
     }
 }

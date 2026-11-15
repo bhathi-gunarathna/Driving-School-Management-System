@@ -76,6 +76,23 @@ class TrialManagementTest extends TestCase
         $this->assertDatabaseCount('trial_category_results', 3);
     }
 
+    public function test_owner_can_add_a_student_to_a_scheduled_trial_on_the_trial_date(): void
+    {
+        $owner = $this->owner();
+        $trial = $this->trial($owner, today()->toDateString());
+        $student = $this->student();
+        $enrollment = $this->enrollment($student, 'TODAY');
+
+        Livewire::actingAs($owner)->test(TrialView::class, ['trial' => $trial])
+            ->assertSee('Assign Student Categories')
+            ->set('studentId', (string) $student->id)
+            ->set('enrollmentIds', [(string) $enrollment->id])
+            ->call('addParticipant')->assertHasNoErrors();
+
+        $this->assertDatabaseHas('trial_participants', ['trial_id' => $trial->id, 'student_id' => $student->id]);
+        $this->assertDatabaseHas('trial_category_results', ['student_vehicle_category_id' => $enrollment->id]);
+    }
+
     public function test_inactive_students_and_enrollments_cannot_be_assigned_but_training_warning_does_not_block(): void
     {
         $owner = $this->owner();
@@ -124,6 +141,15 @@ class TrialManagementTest extends TestCase
         $this->assertSame('pending', $retryResult->result);
         $this->assertDatabaseHas('trial_category_results', ['id' => $passResult->id, 'result' => 'passed']);
         $this->assertDatabaseHas('trial_category_results', ['id' => $failResult->id, 'result' => 'failed']);
+
+        Livewire::actingAs($owner)->test(TrialView::class, ['trial' => $retry])
+            ->set('studentId', (string) $student->id)
+            ->set('enrollmentIds', [(string) $passedCategory->id])
+            ->call('addParticipant')->assertHasErrors(['enrollmentIds']);
+        $this->assertDatabaseMissing('trial_category_results', [
+            'trial_participant_id' => $retryParticipant->id,
+            'student_vehicle_category_id' => $passedCategory->id,
+        ]);
 
         Livewire::actingAs($owner)->test(TrialView::class, ['trial' => $firstTrial])
             ->call('recordResult', $failResult->id, 'passed');

@@ -66,7 +66,7 @@
                                     <span class="text-xs text-slate-400">No active categories</span>
                                 @endforelse
                             </div></td>
-                            <td class="px-5 py-4 text-sm text-slate-500">{{ $student->created_at?->format('d M Y') }}</td>
+                            <td class="px-5 py-4 text-sm text-slate-500">{{ $student->created_at?->format(config('school.date_format', 'd M Y')) }}</td>
                             <td class="px-5 py-4"><span class="rounded-full px-3 py-1 text-xs font-semibold {{ $student->status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($student->status) }}</span></td>
                             <td class="px-5 py-4"><div class="flex flex-wrap justify-end gap-2">
                                 @can('students.view_all')<a href="{{ route('admin.students.view', $student) }}" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100">View</a>@endcan

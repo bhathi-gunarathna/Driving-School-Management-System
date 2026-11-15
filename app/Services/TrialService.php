@@ -50,6 +50,18 @@ class TrialService
                 throw ValidationException::withMessages(['enrollmentIds' => 'Choose one or more active vehicle category enrollments belonging to this student.']);
             }
 
+            $previouslyPassed = TrialCategoryResult::query()->whereIn('student_vehicle_category_id', $ids)
+                ->where('result', TrialCategoryResult::RESULT_PASSED)
+                ->whereHas('participant', fn ($participant) => $participant->whereHas('trial', fn ($previousTrial) => $previousTrial
+                    ->where('id', '!=', $lockedTrial->getKey())
+                    ->whereDate('trial_date', '<=', $lockedTrial->trial_date->toDateString())))
+                ->exists();
+            if ($previouslyPassed) {
+                throw ValidationException::withMessages([
+                    'enrollmentIds' => 'A category already passed in a previous trial does not need another trial assignment. Select an eligible failed or pending category.',
+                ]);
+            }
+
             $participant = TrialParticipant::query()->where('trial_id', $lockedTrial->getKey())
                 ->where('student_id', $student->getKey())->lockForUpdate()->first();
             if (! $participant) {
@@ -123,6 +135,7 @@ class TrialService
                 'recorded_at' => $now,
             ]);
             $item->update(['result' => $result, 'notes' => $notes, 'recorded_by' => $actor->getKey(), 'recorded_at' => $now]);
+            app(SchoolNotificationService::class)->notifyTrialResult($item, $actor);
         });
     }
 }

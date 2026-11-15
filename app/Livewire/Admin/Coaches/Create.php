@@ -3,9 +3,11 @@
 namespace App\Livewire\Admin\Coaches;
 
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Throwable;
 use Livewire\Component;
 
 class Create extends Component
@@ -73,6 +75,17 @@ class Create extends Component
             ]);
 
             $coach->assignRole('Coach');
+            try {
+                AuditLog::create([
+                    'user_id' => auth()->id(), 'user_name' => auth()->user()?->name,
+                    'action' => 'created', 'module' => 'coaches', 'description' => 'Coach account created',
+                    'related_type' => 'User', 'related_id' => $coach->getKey(),
+                    'new_values' => ['name' => $coach->name, 'email' => $coach->email, 'phone' => $coach->phone, 'is_active' => $coach->is_active],
+                    'ip_address' => request()->ip(), 'created_at' => now(),
+                ]);
+            } catch (Throwable $exception) {
+                report($exception);
+            }
 
         });
 

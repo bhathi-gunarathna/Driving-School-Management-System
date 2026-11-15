@@ -5,6 +5,7 @@ namespace App\Livewire\Admin\Students;
 use App\Models\Student;
 use App\Models\VehicleCategory;
 use App\Models\StudentPaymentPlan;
+use App\Models\SystemSetting;
 use App\Services\StudentPaymentService;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -150,7 +151,7 @@ class Create extends Component
                 ]);
 
                 // The auto-increment ID provides a concurrency-safe unique sequence.
-                $student->student_number = sprintf('DS-%s-%04d', now()->format('Y'), $student->getKey());
+                $student->student_number = sprintf('%s-%s-%04d', SystemSetting::current()->student_number_prefix ?: 'DS', now()->format('Y'), $student->getKey());
                 $student->save();
 
                 $totalFeeCents = 0;

@@ -1,0 +1,17 @@
+<div class="space-y-6">
+    <div><h1 class="text-2xl font-bold text-slate-900">Audit Logs</h1><p class="mt-1 text-sm text-slate-500">Read-only history of important account and school operations.</p></div>
+    <section class="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-3">
+        <input wire:model.live.debounce.350ms="search" type="search" placeholder="Search action, user, record" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+        <select wire:model.live="userFilter" class="rounded-xl border border-slate-300 px-4 py-3 text-sm"><option value="">All users</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select>
+        <select wire:model.live="moduleFilter" class="rounded-xl border border-slate-300 px-4 py-3 text-sm"><option value="">All modules</option>@foreach($modules as $module)<option value="{{ $module }}">{{ str($module)->replace('-', ' ')->title() }}</option>@endforeach</select>
+        <select wire:model.live="actionFilter" class="rounded-xl border border-slate-300 px-4 py-3 text-sm"><option value="">All actions</option>@foreach($actions as $action)<option value="{{ $action }}">{{ str($action)->title() }}</option>@endforeach</select>
+        <label class="text-xs font-semibold text-slate-500">From<input wire:model.live="startDate" type="date" class="mt-1 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></label>
+        <label class="text-xs font-semibold text-slate-500">To<input wire:model.live="endDate" type="date" class="mt-1 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></label>
+    </section>
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div wire:loading class="px-5 py-2 text-xs text-blue-600">Updating audit history…</div>
+        <div class="overflow-x-auto"><table class="w-full min-w-[950px] text-left"><thead class="bg-slate-50"><tr>@foreach(['Date / time','User','Module','Action','Description','Related record','Changes'] as $heading)<th class="px-4 py-3 text-xs font-semibold uppercase text-slate-500">{{ $heading }}</th>@endforeach</tr></thead><tbody class="divide-y divide-slate-100">
+            @forelse($logs as $log)<tr class="align-top"><td class="px-4 py-4 text-sm whitespace-nowrap">{{ $log->created_at?->format('d M Y H:i') }}</td><td class="px-4 py-4 text-sm">{{ $log->user_name ?? 'System' }}</td><td class="px-4 py-4 text-sm">{{ str($log->module)->replace('-', ' ')->title() }}</td><td class="px-4 py-4 text-sm">{{ str($log->action)->title() }}</td><td class="max-w-sm px-4 py-4 text-sm">{{ $log->description }}</td><td class="px-4 py-4 text-sm">{{ $log->related_type ?? '—' }} {{ $log->related_id ? '#'.$log->related_id : '' }}</td><td class="max-w-sm px-4 py-4 text-xs text-slate-500"><details><summary class="cursor-pointer font-semibold">View changed fields</summary><pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap">{{ json_encode(['before'=>$log->previous_values,'after'=>$log->new_values], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) }}</pre></details></td></tr>@empty<tr><td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">No audit entries match these filters.</td></tr>@endforelse
+        </tbody></table></div><div class="p-5">{{ $logs->links() }}</div>
+    </section>
+</div>

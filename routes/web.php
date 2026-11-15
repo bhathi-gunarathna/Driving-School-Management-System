@@ -32,6 +32,9 @@ use App\Livewire\Admin\Finance\Overview as FinancialOverview;
 use App\Livewire\Admin\Finance\IncomeReport;
 use App\Livewire\Admin\Finance\OutstandingReport;
 use App\Http\Controllers\Admin\FinancialExportController;
+use App\Livewire\Admin\Settings\Edit as EditSystemSettings;
+use App\Livewire\Admin\Audit\Index as AuditLogIndex;
+use App\Livewire\Notifications\Index as NotificationIndex;
 
 
 // Public Routes
@@ -57,6 +60,9 @@ Route::middleware('auth')->group(function () {
             // Dashboard
             Route::get('/dashboard', AdminDashboard::class)
                 ->name('dashboard');
+
+            Route::middleware('permission:settings.manage')->get('/settings', EditSystemSettings::class)->name('settings.edit');
+            Route::middleware('permission:audit-logs.view')->get('/audit-logs', AuditLogIndex::class)->name('audit.index');
 
             Route::prefix('finance')->name('finance.')->group(function () {
                 Route::middleware('permission:financial-reports.view')->group(function () {
@@ -143,6 +149,8 @@ Route::middleware('auth')->group(function () {
             });
 
         });
+
+    Route::get('/notifications', NotificationIndex::class)->name('notifications.index');
 
     /*
     |--------------------------------------------------------------------------

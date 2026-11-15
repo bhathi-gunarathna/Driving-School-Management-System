@@ -8,6 +8,7 @@ use App\Models\StudentPaymentPlan;
 use App\Models\Trial;
 use App\Models\TrainingSession;
 use App\Models\User;
+use App\Models\VehicleCategory;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -33,8 +34,8 @@ class Dashboard extends Component
         if ($financeVisible) {
             $from = $today->subDays(6)->toDateString();
             $to = $today->toDateString();
-            $amounts = StudentPayment::query()->whereBetween('payment_date', [$from, $to])
-                ->selectRaw('payment_date, SUM(amount) as income')->groupBy('payment_date')->pluck('income', 'payment_date');
+            $amounts = StudentPayment::query()->whereDate('payment_date', '>=', $from)->whereDate('payment_date', '<=', $to)
+                ->selectRaw('DATE(payment_date) as report_date, SUM(amount) as income')->groupByRaw('DATE(payment_date)')->pluck('income', 'report_date');
             $dailyIncome = collect(range(6, 0))->map(function (int $daysAgo) use ($today, $amounts): array {
                 $date = $today->subDays($daysAgo);
                 return ['label' => $date->format('D'), 'date' => $date->toDateString(), 'income' => (float) ($amounts[$date->toDateString()] ?? 0)];
@@ -48,6 +49,8 @@ class Dashboard extends Component
             'totalStudents' => Student::count(),
             'activeStudents' => Student::where('status', Student::STATUS_ACTIVE)->count(),
             'activeCoaches' => User::role('Coach')->where('is_active', true)->count(),
+            'activeCategories' => VehicleCategory::active()->count(),
+            'recentStudents' => Student::query()->latest()->limit(5)->get(),
             'upcomingTrials' => Trial::upcoming()->withCount('participants')->orderBy('trial_date')->limit(5)->get(),
             'upcomingTrialCount' => Trial::upcoming()->count(),
             'todayTrainingCount' => TrainingSession::whereDate('training_date', $today->toDateString())->count(),

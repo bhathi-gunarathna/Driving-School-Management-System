@@ -290,7 +290,7 @@
                             {{-- Joined Date --}}
                             <td class="px-6 py-4 text-sm text-slate-500">
 
-                                {{ $coach->created_at?->format('d M Y') }}
+                                {{ $coach->created_at?->format(config('school.date_format', 'd M Y')) }}
 
                             </td>
 

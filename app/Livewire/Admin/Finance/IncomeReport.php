@@ -94,7 +94,7 @@ class IncomeReport extends Component
 
         return view('livewire.admin.finance.income-report', [
             'range' => $range,
-            'rangeLabel' => $range ? $range[0]->format('d M Y').' – '.$range[1]->format('d M Y') : null,
+            'rangeLabel' => $range ? $range[0]->format(config('school.date_format', 'd M Y')).' – '.$range[1]->format(config('school.date_format', 'd M Y')) : null,
             'incomeTotal' => $rollup->income_total ?? 0,
             'transactionCount' => $rollup->transaction_count ?? 0,
             'averageAmount' => $rollup->average_amount ?? 0,

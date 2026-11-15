@@ -85,9 +85,10 @@ class View extends Component
             ->orderBy('id');
         $participants = $participantsQuery->paginate(15, ['*'], 'participantsPage');
 
+        $passedEnrollmentIds = $this->passedEnrollmentIds();
         $selectedEnrollments = $this->studentId === '' ? collect() : StudentVehicleCategory::query()
             ->with(['vehicleCategory', 'trainingSessions' => fn ($q) => $q->where('status', 'completed')])
-            ->where('student_id', $this->studentId)->where('status', 'active')->get()
+            ->where('student_id', $this->studentId)->where('status', 'active')->whereNotIn('id', $passedEnrollmentIds)->get()
             ->map(function ($enrollment) {
                 $enrollment->setAttribute('completed_minutes', $enrollment->trainingSessions->sum('duration_minutes'));
                 $enrollment->progress = TrainingProgress::forEnrollment($enrollment);
@@ -98,10 +99,20 @@ class View extends Component
 
         return view('livewire.admin.trials.view', [
             'participants' => $participants,
-            'students' => Student::query()->where('status', Student::STATUS_ACTIVE)->whereHas('enrollments', fn (Builder $q) => $q->where('status', 'active'))->orderBy('full_name')->get(),
+            'students' => Student::query()->where('status', Student::STATUS_ACTIVE)->whereHas('enrollments', fn (Builder $q) => $q->where('status', 'active')->whereNotIn('id', $passedEnrollmentIds))->orderBy('full_name')->get(),
             'selectedEnrollments' => $selectedEnrollments,
             'categories' => \App\Models\VehicleCategory::orderBy('category_code')->get(),
             'assignedEnrollmentIds' => $assignedEnrollmentIds,
         ])->layout('layouts.admin');
+    }
+
+    /** @return list<int> Active enrollments whose current result in a prior trial is Passed. */
+    private function passedEnrollmentIds(): array
+    {
+        return TrialCategoryResult::query()->where('result', TrialCategoryResult::RESULT_PASSED)
+            ->whereHas('participant', fn (Builder $participant) => $participant->whereHas('trial', fn (Builder $trial) => $trial
+                ->where('id', '!=', $this->trial->getKey())
+                ->whereDate('trial_date', '<=', $this->trial->trial_date->toDateString())))
+            ->pluck('student_vehicle_category_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 }

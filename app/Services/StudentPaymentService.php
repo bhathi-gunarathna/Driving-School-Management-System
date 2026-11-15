@@ -7,6 +7,7 @@ use App\Models\StudentPayment;
 use App\Models\StudentPaymentInstallment;
 use App\Models\StudentPaymentPlan;
 use App\Models\User;
+use App\Models\SystemSetting;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -77,7 +78,7 @@ class StudentPaymentService
                 'received_by' => $receivedBy->getKey(),
             ]);
 
-            $payment->receipt_number = sprintf('DS-RCPT-%s-%06d', now()->format('Y'), $payment->getKey());
+            $payment->receipt_number = sprintf('%s-%s-%06d', SystemSetting::current()->receipt_prefix ?: 'DS-RCPT', now()->format('Y'), $payment->getKey());
             $payment->save();
 
             $plan->total_amount_paid = Money::fromCents($newPaidCents);

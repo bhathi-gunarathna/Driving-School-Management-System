@@ -25,13 +25,15 @@ class TrainingService
                 throw ValidationException::withMessages(['coachId' => 'This coach is already assigned to this category enrollment.']);
             }
 
-            return TrainingCoachAssignment::create([
+            $assignment = TrainingCoachAssignment::create([
                 'student_vehicle_category_id' => $enrollmentId,
                 'coach_id' => $coach->getKey(),
                 'assigned_by' => $owner->getKey(),
                 'status' => TrainingCoachAssignment::STATUS_ACTIVE,
                 'assigned_at' => now(),
             ]);
+            app(SchoolNotificationService::class)->notifyAssignment($assignment);
+            return $assignment;
         });
     }
 
