@@ -53,4 +53,9 @@ class Student extends Model
     {
         return $this->hasMany(StudentVehicleCategory::class, 'student_id');
     }
+
+    public function trialParticipants(): HasMany
+    {
+        return $this->hasMany(TrialParticipant::class);
+    }
 }

@@ -22,4 +22,5 @@ class StudentVehicleCategory extends Pivot
     public function vehicleCategory(): BelongsTo { return $this->belongsTo(VehicleCategory::class); }
     public function coachAssignments(): HasMany { return $this->hasMany(TrainingCoachAssignment::class, 'student_vehicle_category_id'); }
     public function trainingSessions(): HasMany { return $this->hasMany(TrainingSession::class, 'student_vehicle_category_id'); }
+    public function trialCategoryResults(): HasMany { return $this->hasMany(TrialCategoryResult::class, 'student_vehicle_category_id'); }
 }

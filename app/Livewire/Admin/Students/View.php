@@ -28,6 +28,7 @@ class View extends Component
             'enrollments.vehicleCategory',
             'enrollments.coachAssignments' => fn ($query) => $query->with('coach')->orderByDesc('id'),
             'enrollments.trainingSessions' => fn ($query) => $query->with('coach')->orderByDesc('training_date')->orderByDesc('id'),
+            'enrollments.trialCategoryResults' => fn ($query) => $query->with(['participant.trial', 'recordedBy', 'history.changedBy'])->orderByDesc('id'),
             'paymentPlan.installments',
             'payments.receivedBy',
         ])->findOrFail($student->getKey());
@@ -44,12 +45,24 @@ class View extends Component
             $enrollment->setAttribute('completed_minutes', $enrollment->trainingSessions->where('status', 'completed')->sum('duration_minutes'));
             return [$enrollment->getKey() => TrainingProgress::forEnrollment($enrollment)];
         });
+        $trialHistory = $this->student->enrollments->mapWithKeys(function ($enrollment): array {
+            $attempts = $enrollment->trialCategoryResults->sortByDesc(function ($result): string {
+                $trial = $result->participant->trial;
+                return $trial->trial_date->format('Ymd').str_pad((string) $trial->getKey(), 12, '0', STR_PAD_LEFT);
+            })->values();
+            return [$enrollment->getKey() => [
+                'attempts' => $attempts,
+                'latest' => $attempts->first(),
+                'status' => $attempts->isEmpty() ? 'Not Yet Attempted' : str($attempts->first()->result)->title(),
+            ]];
+        });
 
         return view('livewire.admin.students.view', [
             'activeEnrollments' => $activeEnrollments,
             'totalAgreedFee' => number_format($totalFeeCents / 100, 2),
             'totalTrainingHours' => number_format($totalTrainingHundredths / 100, 2),
             'trainingProgress' => $trainingProgress,
+            'trialHistory' => $trialHistory,
         ])->layout('layouts.admin');
     }
 

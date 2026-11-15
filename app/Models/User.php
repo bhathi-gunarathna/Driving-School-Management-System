@@ -61,4 +61,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(TrainingSession::class, 'coach_id');
     }
+
+    public function createdTrials(): HasMany
+    {
+        return $this->hasMany(Trial::class, 'created_by');
+    }
+
+    public function recordedTrialResults(): HasMany
+    {
+        return $this->hasMany(TrialCategoryResult::class, 'recorded_by');
+    }
 }

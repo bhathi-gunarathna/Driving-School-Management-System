@@ -49,6 +49,9 @@ class RolePermissionSeeder extends Seeder
             // Trials
             'trials.view_all',
             'trials.view_assigned',
+            'trials.view',
+            'trials.manage',
+            'trials.results.record',
             'trials.create',
             'trials.update',
             'trials.update_results',
@@ -61,6 +64,8 @@ class RolePermissionSeeder extends Seeder
             'reports.view_financial',
             'reports.view_operational',
             'reports.export',
+            'financial-reports.view',
+            'financial-reports.export',
 
             // Settings
             'settings.manage',
@@ -86,7 +91,7 @@ class RolePermissionSeeder extends Seeder
             'training.view_assigned',
             'training.record',
             'trials.view_assigned',
-            'trials.update_results',
+            'trials.results.record',
         ]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

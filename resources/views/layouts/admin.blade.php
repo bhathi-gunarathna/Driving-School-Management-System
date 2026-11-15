@@ -88,10 +88,12 @@
                             </a>
                         @endcan
 
-                        <a href="#" class="sidebar-link">
-                            <span>▣</span>
-                            <span>Trial Management</span>
-                        </a>
+                        @can('trials.view')
+                            <a href="{{ route('admin.trials.index') }}" class="sidebar-link {{ request()->routeIs('admin.trials.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">TR</span>
+                                <span>Trial Management</span>
+                            </a>
+                        @endcan
 
                     </div>
 
@@ -115,15 +117,13 @@
 
                     <p class="sidebar-heading">FINANCE</p>
 
-                    <a href="#" class="sidebar-link">
-                        <span>▤</span>
-                        <span>Financial Overview</span>
-                    </a>
-
-                    <a href="#" class="sidebar-link">
-                        <span>▧</span>
-                        <span>Income Reports</span>
-                    </a>
+                    @can('financial-reports.view')
+                        <div class="space-y-1">
+                            <a href="{{ route('admin.finance.overview') }}" class="sidebar-link {{ request()->routeIs('admin.finance.overview') ? 'sidebar-active' : '' }}"><span aria-hidden="true">LKR</span><span>Financial Overview</span></a>
+                            <a href="{{ route('admin.finance.income') }}" class="sidebar-link {{ request()->routeIs('admin.finance.income') ? 'sidebar-active' : '' }}"><span aria-hidden="true">IN</span><span>Income Reports</span></a>
+                            <a href="{{ route('admin.finance.outstanding') }}" class="sidebar-link {{ request()->routeIs('admin.finance.outstanding') ? 'sidebar-active' : '' }}"><span aria-hidden="true">OS</span><span>Outstanding Payments</span></a>
+                        </div>
+                    @endcan
 
                 </div>
 

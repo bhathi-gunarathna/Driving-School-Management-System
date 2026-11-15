@@ -75,6 +75,25 @@
         @endforelse
     </section>
 
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 p-6"><h2 class="text-lg font-bold text-slate-900">Trial History</h2><p class="mt-1 text-sm text-slate-500">Every category attempt remains in the record, including re-trials and result corrections.</p></div>
+        @forelse($student->enrollments as $enrollment)
+            @php($history = $trialHistory[$enrollment->id])
+            <div wire:key="student-trials-{{ $enrollment->id }}" class="border-b border-slate-100 p-5 last:border-0 sm:p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-semibold text-slate-900">{{ $enrollment->vehicleCategory->category_code }} ? {{ $enrollment->vehicleCategory->category_name }}</h3><span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{{ $history['status'] }}</span></div>
+                <div class="mt-3 overflow-x-auto"><table class="w-full min-w-[600px] text-left"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-xs font-semibold uppercase text-slate-500">Trial Date</th><th class="px-3 py-2 text-xs font-semibold uppercase text-slate-500">Trial Number</th><th class="px-3 py-2 text-xs font-semibold uppercase text-slate-500">Result</th><th class="px-3 py-2 text-xs font-semibold uppercase text-slate-500">Recorded By</th><th class="px-3 py-2 text-xs font-semibold uppercase text-slate-500">Recorded At</th></tr></thead><tbody class="divide-y divide-slate-100">
+                    @forelse($history['attempts'] as $attempt)
+                        <tr><td class="px-3 py-3 text-sm">{{ $attempt->participant->trial->trial_date->format('d M Y') }}</td><td class="px-3 py-3 text-sm font-medium">{{ $attempt->participant->trial->trial_number }}</td><td class="px-3 py-3 text-sm">{{ str($attempt->result)->title() }}</td><td class="px-3 py-3 text-sm">{{ $attempt->recordedBy?->name ?? '?' }}</td><td class="px-3 py-3 text-sm">{{ $attempt->recorded_at?->format('d M Y H:i') ?? '?' }}</td></tr>
+                    @empty
+                        <tr><td colspan="5" class="px-3 py-4 text-sm text-slate-500">Not Yet Attempted</td></tr>
+                    @endforelse
+                </tbody></table></div>
+            </div>
+        @empty
+            <p class="p-6 text-sm text-slate-500">No vehicle category enrollments to show.</p>
+        @endforelse
+    </section>
+
     @can('payments.view')
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="text-lg font-bold text-slate-900">Course Payments</h2><p class="mt-1 text-sm text-slate-500">Installments are planned amounts; received totals come only from recorded payment receipts.</p></div>@if($student->paymentPlan && (float) $student->paymentPlan->outstanding_balance > 0 && auth()->user()->can('payments.manage'))<a href="{{ route('admin.payments.create', $student) }}" class="rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700">Record Payment</a>@endif</div>

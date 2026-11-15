@@ -22,6 +22,16 @@ use App\Livewire\Admin\Training\Index as TrainingIndex;
 use App\Livewire\Coach\Training\Dashboard as CoachTrainingDashboard;
 use App\Livewire\Coach\Training\Index as CoachTrainingIndex;
 use App\Livewire\Coach\Training\Record as RecordTrainingSession;
+use App\Livewire\Admin\Trials\Index as TrialIndex;
+use App\Livewire\Admin\Trials\Create as CreateTrial;
+use App\Livewire\Admin\Trials\View as ViewTrial;
+use App\Livewire\Coach\Trials\Index as CoachTrialIndex;
+use App\Livewire\Coach\Trials\View as CoachTrialView;
+use App\Livewire\Admin\Dashboard as AdminDashboard;
+use App\Livewire\Admin\Finance\Overview as FinancialOverview;
+use App\Livewire\Admin\Finance\IncomeReport;
+use App\Livewire\Admin\Finance\OutstandingReport;
+use App\Http\Controllers\Admin\FinancialExportController;
 
 
 // Public Routes
@@ -45,8 +55,22 @@ Route::middleware('auth')->group(function () {
         ->group(function () {
 
             // Dashboard
-            Route::view('/dashboard', 'admin.dashboard')
+            Route::get('/dashboard', AdminDashboard::class)
                 ->name('dashboard');
+
+            Route::prefix('finance')->name('finance.')->group(function () {
+                Route::middleware('permission:financial-reports.view')->group(function () {
+                    Route::get('/overview', FinancialOverview::class)->name('overview');
+                    Route::get('/income', IncomeReport::class)->name('income');
+                    Route::get('/outstanding', OutstandingReport::class)->name('outstanding');
+                });
+                Route::middleware('permission:financial-reports.export')->prefix('exports')->name('exports.')->group(function () {
+                    Route::get('/transactions.csv', [FinancialExportController::class, 'transactions'])->name('transactions');
+                    Route::get('/daily.csv', [FinancialExportController::class, 'daily'])->name('daily');
+                    Route::get('/monthly.csv', [FinancialExportController::class, 'monthly'])->name('monthly');
+                    Route::get('/outstanding.csv', [FinancialExportController::class, 'outstanding'])->name('outstanding');
+                });
+            });
 
 
             /*
@@ -113,6 +137,10 @@ Route::middleware('auth')->group(function () {
             Route::middleware('permission:training.view_assigned')->get('/training', CoachTrainingIndex::class)->name('training.index');
             Route::middleware('permission:training.record')->get('/training/enrollments/{enrollment}/record', RecordTrainingSession::class)
                 ->whereNumber('enrollment')->name('training.record');
+            Route::middleware('permission:trials.view_assigned')->prefix('trials')->name('trials.')->group(function () {
+                Route::get('/', CoachTrialIndex::class)->name('index');
+                Route::get('/{trial}', CoachTrialView::class)->whereNumber('trial')->name('view');
+            });
 
         });
 
@@ -165,5 +193,13 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['role:Owner', 'permission:training.view'])->prefix('admin/training')->name('admin.training.')
         ->get('/', TrainingIndex::class)->name('index');
+
+    Route::middleware('role:Owner')->prefix('admin/trials')->name('admin.trials.')->group(function () {
+        Route::middleware('permission:trials.manage')->get('/create', CreateTrial::class)->name('create');
+        Route::middleware('permission:trials.view')->group(function () {
+            Route::get('/', TrialIndex::class)->name('index');
+            Route::get('/{trial}', ViewTrial::class)->whereNumber('trial')->name('view');
+        });
+    });
 
 });
