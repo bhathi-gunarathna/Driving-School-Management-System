@@ -76,7 +76,7 @@
             </div>
 
             {{-- Navigation --}}
-            <nav class="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
+            <nav class="scrollbar-dark flex-1 px-4 py-6 space-y-7 overflow-y-auto">
 
                 {{-- Overview --}}
                 <div>
@@ -280,7 +280,7 @@
 
             </header>
 
-            <nav class="flex gap-2 overflow-x-auto bg-slate-950 px-4 py-2 text-xs text-white lg:hidden">
+            <nav class="scrollbar-dark flex gap-2 overflow-x-auto bg-slate-950 px-4 py-2 text-xs text-white lg:hidden">
                 <a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.dashboard') }}">Dashboard</a>
                 @can('students.view_all')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.students.index') }}">Students</a>@endcan
                 @can('vehicle-categories.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.vehicle-categories.index') }}">Categories</a>@endcan

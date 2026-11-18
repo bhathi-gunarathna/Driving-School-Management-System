@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use App\Services\UserSessionRevoker;
 
 class Edit extends Component
 {
@@ -107,15 +108,8 @@ class Edit extends Component
 
             $coach->save();
 
-            if ($passwordChanged && config('session.driver') === 'database') {
-                $sessionConnection = DB::connection(config('session.connection'));
-                $sessionTable = config('session.table', 'sessions');
-
-                if ($sessionConnection->getSchemaBuilder()->hasTable($sessionTable)) {
-                    $sessionConnection->table($sessionTable)
-                        ->where('user_id', $coachId)
-                        ->delete();
-                }
+            if ($passwordChanged || (! $validated['is_active'] && $coach->wasChanged('is_active'))) {
+                app(UserSessionRevoker::class)->revoke($coach);
             }
 
             $this->coach = $coach;

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Services\UserSessionRevoker;
 
 class Index extends Component
 {
@@ -55,6 +56,10 @@ class Index extends Component
 
             $coach->is_active = ! $coach->is_active;
             $coach->save();
+
+            if (! $coach->is_active) {
+                app(UserSessionRevoker::class)->revoke($coach);
+            }
         });
 
         session()->flash('success', 'Coach account status updated.');

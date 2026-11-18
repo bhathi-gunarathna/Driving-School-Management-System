@@ -69,6 +69,12 @@ The application schedules `school:send-notifications` once daily at 08:00 in the
 
 Notifications use Laravel's database channel synchronously. No email/SMS integration or queue worker is required for this feature. If queued jobs are introduced later, configure and supervise a queue worker and restart it after releases.
 
+## Authentication session revocation
+
+Immediate per-user session revocation is supported when `SESSION_DRIVER=database` and the configured session table exists. Password resets, administrative Coach password changes, and Coach deactivation remove that user's database session rows while leaving other accounts' sessions untouched. Coach routes also check the active flag and log out deactivated Coaches on their next request.
+
+Laravel's `file`, `cookie`, `array`, `memcached`, `redis`, and `dynamodb` session drivers do not expose a portable per-user delete operation through this application. With those drivers, password changes cannot immediately revoke all existing sessions; deactivated Coaches are denied access at their next Coach route request. Use database sessions in production when immediate revocation is required. Confirm the session table has been migrated before enabling this setting.
+
 ## Backups and recovery
 
 1. Back up MySQL with a transaction-consistent dump and encrypt it at rest. Example (use a protected MySQL option file or secret manager rather than putting passwords in shell history):

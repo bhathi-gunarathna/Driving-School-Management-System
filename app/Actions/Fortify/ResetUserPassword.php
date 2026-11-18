@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
+use App\Services\UserSessionRevoker;
 
 class ResetUserPassword implements ResetsUserPasswords
 {
@@ -25,8 +26,13 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $user->forceFill([
-            'password' => Hash::make($input['password']),
-        ])->save();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $input): void {
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->getKey());
+            $lockedUser->forceFill([
+                'password' => Hash::make($input['password']),
+            ])->save();
+
+            app(UserSessionRevoker::class)->revoke($lockedUser);
+        });
     }
 }

@@ -220,7 +220,7 @@ class Edit extends Component
     public function render()
     {
         $categories = VehicleCategory::query()->where(function ($query): void {
-            $query->where('is_active', true)->orWhereKey($this->vehicle->vehicle_category_id ?? 0);
+            $query->where('is_active', true)->orWhere('id', $this->vehicle->vehicle_category_id ?? 0);
         })->orderBy('category_code')->get();
 
         return view('livewire.admin.vehicles.edit', [

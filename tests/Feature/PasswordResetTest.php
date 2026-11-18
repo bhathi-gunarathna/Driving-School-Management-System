@@ -125,6 +125,11 @@ class PasswordResetTest extends TestCase
         $user->assignRole(Role::findOrCreate('Owner', 'web'));
         $oldHash = $user->password;
         $token = Password::broker()->createToken($user);
+        config(['session.driver' => 'database']);
+        DB::table('sessions')->insert([
+            ['id' => 'owner-old-session', 'user_id' => $user->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'old', 'payload' => 'payload', 'last_activity' => time()],
+            ['id' => 'unrelated-session', 'user_id' => ($other = User::factory()->create())->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'other', 'payload' => 'payload', 'last_activity' => time()],
+        ]);
 
         $this->post(route('password.update'), [
             'token' => $token,
@@ -140,6 +145,8 @@ class PasswordResetTest extends TestCase
         $this->assertTrue($user->hasRole('Owner'));
         $this->assertGuest();
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'owner-old-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'unrelated-session', 'user_id' => $other->id]);
     }
 
     public function test_valid_token_resets_coach_password_without_changing_role(): void
@@ -147,6 +154,10 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole(Role::findOrCreate('Coach', 'web'));
         $token = Password::broker()->createToken($user);
+        config(['session.driver' => 'database']);
+        DB::table('sessions')->insert([
+            'id' => 'coach-reset-session', 'user_id' => $user->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'old', 'payload' => 'payload', 'last_activity' => time(),
+        ]);
 
         $this->post(route('password.update'), [
             'token' => $token,
@@ -157,6 +168,7 @@ class PasswordResetTest extends TestCase
 
         $this->assertTrue(Hash::check('Updated-pass-456', $user->fresh()->password));
         $this->assertTrue($user->fresh()->hasRole('Coach'));
+        $this->assertDatabaseMissing('sessions', ['id' => 'coach-reset-session']);
     }
 
     public function test_invalid_token_is_rejected(): void

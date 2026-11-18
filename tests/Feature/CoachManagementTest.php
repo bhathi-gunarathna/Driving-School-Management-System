@@ -222,12 +222,19 @@ class CoachManagementTest extends TestCase
     {
         $owner = $this->makeOwner();
         $coach = $this->makeCoach();
+        config(['session.driver' => 'database']);
+        DB::table('sessions')->insert([
+            ['id' => 'deactivated-coach-session', 'user_id' => $coach->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'coach', 'payload' => 'payload', 'last_activity' => time()],
+            ['id' => 'active-owner-session', 'user_id' => $owner->id, 'ip_address' => '127.0.0.1', 'user_agent' => 'owner', 'payload' => 'payload', 'last_activity' => time()],
+        ]);
 
         Livewire::actingAs($owner)
             ->test(Index::class)
             ->call('toggleActive', $coach->id);
 
         $this->assertDatabaseHas('users', ['id' => $coach->id, 'is_active' => false]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'deactivated-coach-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'active-owner-session']);
         $this->assertDatabaseHas('audit_logs', ['related_id' => $coach->id, 'action' => 'deactivated']);
 
         Livewire::actingAs($owner)
@@ -236,6 +243,21 @@ class CoachManagementTest extends TestCase
 
         $this->assertDatabaseHas('users', ['id' => $coach->id, 'is_active' => true]);
         $this->assertDatabaseHas('audit_logs', ['related_id' => $coach->id, 'action' => 'activated']);
+    }
+
+    public function test_reactivated_coach_can_log_in_with_existing_credentials(): void
+    {
+        $coach = $this->makeCoach(['is_active' => false]);
+
+        $this->post(route('login'), ['email' => $coach->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $coach->update(['is_active' => true]);
+
+        $this->post(route('login'), ['email' => $coach->email, 'password' => 'password'])
+            ->assertRedirect();
+
+        $this->assertAuthenticatedAs($coach);
     }
 
     public function test_edit_prevents_the_signed_in_account_from_deactivating_itself(): void

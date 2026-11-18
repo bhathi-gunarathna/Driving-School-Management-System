@@ -51,6 +51,7 @@ use App\Livewire\Admin\Expenses\View as ViewExpense;
 use App\Livewire\Admin\Expenses\Categories as ExpenseCategories;
 use App\Livewire\Admin\Expenses\Reports as ExpenseReports;
 use App\Livewire\Notifications\Index as NotificationIndex;
+use App\Http\Middleware\EnsureActiveCoach;
 
 
 // Public Routes
@@ -159,7 +160,7 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware('role:Coach')
+    Route::middleware(['role:Coach', EnsureActiveCoach::class])
         ->prefix('coach')
         ->name('coach.')
         ->group(function () {
