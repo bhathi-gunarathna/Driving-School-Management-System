@@ -16,7 +16,11 @@
 
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-5 border-b border-slate-200 p-6 sm:flex-row sm:items-center sm:p-8">
-            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-2xl font-bold text-blue-700">{{ strtoupper(substr($student->full_name, 0, 1)) }}</div>
+            @if ($student->profile_photo_path)
+                <img src="{{ route('admin.students.photo', $student) }}" alt="Profile photo of {{ $student->full_name }}" class="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 object-cover">
+            @else
+                <div aria-label="Default student avatar" class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-2xl font-bold text-blue-700">{{ strtoupper(substr($student->full_name, 0, 1)) }}</div>
+            @endif
             <div class="min-w-0 flex-1">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $student->student_number }}</p>
                 <h2 class="mt-1 break-words text-xl font-bold text-slate-900">{{ $student->full_name }}</h2>
@@ -113,7 +117,12 @@
     @endcan
 
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="text-lg font-bold text-slate-900">Medical Report</h2>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Medical Report</h2>
+                <p class="mt-1 text-sm text-slate-500">Reference number: {{ $student->medical_report_reference ?: 'Not provided' }}</p>
+            </div>
+        </div>
         @if ($student->medical_report_path)
             <a href="{{ route('admin.students.medical-report', $student) }}" target="_blank" rel="noopener" class="mt-4 inline-block">
                 <img src="{{ route('admin.students.medical-report', $student) }}" alt="Medical report for {{ $student->full_name }}" loading="lazy" class="max-h-96 max-w-full rounded-xl border border-slate-200 object-contain">

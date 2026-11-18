@@ -37,13 +37,23 @@
                     @error('address') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div class="md:col-span-2">
-                    <label for="medical-report" class="mb-2 block text-sm font-medium text-slate-700">Medical report <span class="font-normal text-slate-400">(optional, JPG/PNG, max 5 MB)</span></label>
-                    <input id="medical-report" type="file" wire:model="medicalReport" accept="image/jpeg,image/png" class="block w-full rounded-xl border border-slate-200 bg-white text-sm text-slate-600 file:mr-4 file:rounded-l-xl file:border-0 file:bg-slate-100 file:px-4 file:py-3 file:text-sm file:font-semibold file:text-slate-700">
-                    @error('medicalReport') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
-                    <span wire:loading wire:target="medicalReport" class="mt-2 block text-xs text-slate-400">Uploading report…</span>
-                    @if ($medicalReport && in_array(strtolower($medicalReport->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true))
-                        <img src="{{ $medicalReport->temporaryUrl() }}" alt="Medical report preview" class="mt-4 max-h-48 rounded-xl border border-slate-200 object-contain">
-                    @endif
+                    @include('livewire.admin.students._private-image-upload', [
+                        'field' => 'profilePhoto', 'title' => 'Student Profile Photo',
+                        'description' => 'Add a student portrait. On supported mobile devices, the file picker can open the camera.',
+                        'temporaryUpload' => $profilePhoto,
+                    ])
+                </div>
+                <div class="md:col-span-2">
+                    @include('livewire.admin.students._private-image-upload', [
+                        'field' => 'medicalReport', 'title' => 'Medical Report',
+                        'description' => 'Upload a clear image of the student’s medical report. This file is stored privately and only shown to authorized Owners.',
+                        'temporaryUpload' => $medicalReport,
+                    ])
+                    <div class="mt-4">
+                        <label for="medical-report-reference" class="mb-2 block text-sm font-medium text-slate-700">Medical report reference <span class="font-normal text-slate-400">(optional)</span></label>
+                        <input id="medical-report-reference" type="text" wire:model="medicalReportReference" maxlength="100" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter the report reference number">
+                        @error('medicalReportReference')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
                 </div>
             </div>
         </section>
@@ -128,7 +138,7 @@
 
         <div class="flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <a href="{{ route('admin.students.index') }}" class="rounded-xl border border-slate-200 bg-white px-6 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-100">Cancel</a>
-            <button type="submit" wire:loading.attr="disabled" wire:target="registerStudent,medicalReport" class="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" wire:loading.attr="disabled" wire:target="registerStudent,profilePhoto,medicalReport" class="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                 <span wire:loading.remove wire:target="registerStudent">Register Student</span>
                 <span wire:loading wire:target="registerStudent">Registering…</span>
             </button>

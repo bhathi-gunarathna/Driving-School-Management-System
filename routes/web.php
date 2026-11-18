@@ -11,6 +11,7 @@ use App\Livewire\Admin\VehicleCategories\Edit as EditVehicleCategory;
 use App\Livewire\Admin\VehicleCategories\Index as VehicleCategoryIndex;
 use App\Livewire\Admin\VehicleCategories\View as ViewVehicleCategory;
 use App\Http\Controllers\Admin\Students\MedicalReportController;
+use App\Http\Controllers\Admin\Students\StudentPhotoController;
 use App\Livewire\Admin\Students\Create as CreateStudent;
 use App\Livewire\Admin\Students\Edit as EditStudent;
 use App\Livewire\Admin\Students\Index as StudentIndex;
@@ -184,6 +185,8 @@ Route::middleware('auth')->group(function () {
                 Route::get('/', StudentIndex::class)->name('index');
                 Route::get('/{student}/medical-report', MedicalReportController::class)
                     ->whereNumber('student')->name('medical-report');
+                Route::get('/{student}/photo', StudentPhotoController::class)
+                    ->whereNumber('student')->name('photo');
                 Route::get('/{student}', ViewStudent::class)->whereNumber('student')->name('view');
             });
         });

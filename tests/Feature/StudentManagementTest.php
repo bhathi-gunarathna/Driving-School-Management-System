@@ -54,7 +54,9 @@ class StudentManagementTest extends TestCase
             ->set('date_of_birth', '2000-01-01')
             ->set('contact_number', '0771234567')
             ->set('selectedCategoryIds', [$categoryA->id, $categoryB->id])
+            ->set('profilePhoto', $this->fakePngUpload())
             ->set('medicalReport', $this->fakePngUpload())
+            ->set('medicalReportReference', 'MED-REF-2026-01')
             ->call('registerStudent');
 
         $student = Student::query()->where('nic_number', '200001011234')->firstOrFail();
@@ -76,7 +78,17 @@ class StudentManagementTest extends TestCase
             'status' => 'active',
         ]);
         $this->assertNotNull($student->medical_report_path);
+        $this->assertNotNull($student->profile_photo_path);
+        $this->assertSame('MED-REF-2026-01', $student->medical_report_reference);
+        $this->assertStringStartsWith('student-photos/', $student->profile_photo_path);
+        $this->assertStringStartsWith('medical-reports/', $student->medical_report_path);
         Storage::disk('local')->assertExists($student->medical_report_path);
+        Storage::disk('local')->assertExists($student->profile_photo_path);
+
+        $auditEntry = \App\Models\AuditLog::query()->where('related_type', 'Student')->where('related_id', $student->id)->firstOrFail();
+        $this->assertArrayNotHasKey('profile_photo_path', $auditEntry->new_values);
+        $this->assertArrayNotHasKey('medical_report_path', $auditEntry->new_values);
+        $this->assertArrayNotHasKey('medical_report_reference', $auditEntry->new_values);
     }
 
     public function test_registration_rejects_duplicate_nic(): void
@@ -149,6 +161,100 @@ class StudentManagementTest extends TestCase
             ->set('medicalReport', $oversizedImage)
             ->call('registerStudent')
             ->assertHasErrors(['medicalReport' => 'max']);
+    }
+
+    public function test_student_photo_rejects_invalid_types_and_files_over_five_megabytes(): void
+    {
+        $owner = $this->makeOwner();
+        $category = $this->makeCategory();
+
+        $base = Livewire::actingAs($owner)->test(Create::class)
+            ->set('full_name', 'Photo Student')->set('address', 'Address')->set('nic_number', 'PHOTO-NIC')
+            ->set('date_of_birth', '2000-01-01')->set('contact_number', '0771111111')
+            ->set('selectedCategoryIds', [$category->id]);
+
+        $base->set('profilePhoto', UploadedFile::fake()->create('profile.pdf', 20, 'application/pdf'))
+            ->call('registerStudent')->assertHasErrors(['profilePhoto']);
+
+        Livewire::actingAs($owner)->test(Create::class)
+            ->set('full_name', 'Photo Student')->set('address', 'Address')->set('nic_number', 'PHOTO-NIC')
+            ->set('date_of_birth', '2000-01-01')->set('contact_number', '0771111111')
+            ->set('selectedCategoryIds', [$category->id])
+            ->set('profilePhoto', $this->fakePngUpload()->size(5121))
+            ->call('registerStudent')->assertHasErrors(['profilePhoto' => 'max']);
+    }
+
+    public function test_edit_replaces_private_photo_and_report_after_save(): void
+    {
+        Storage::fake('local');
+        $owner = $this->makeOwner();
+        $student = $this->makeStudent();
+        $category = $this->makeCategory();
+        $student->vehicleCategories()->attach($category->id, ['agreed_fee' => 1000, 'required_training_hours' => 10, 'status' => 'active']);
+        $oldPhoto = $this->fakePngUpload()->store('student-photos', 'local');
+        $oldReport = $this->fakePngUpload()->store('medical-reports', 'local');
+        $student->update(['profile_photo_path' => $oldPhoto, 'medical_report_path' => $oldReport, 'medical_report_reference' => 'OLD-REF']);
+
+        Livewire::actingAs($owner)->test(Edit::class, ['student' => $student])
+            ->set('profilePhoto', $this->fakePngUpload())
+            ->set('medicalReport', $this->fakePngUpload())
+            ->set('medicalReportReference', 'NEW-REF')
+            ->call('updateStudent');
+
+        $student->refresh();
+        $this->assertNotSame($oldPhoto, $student->profile_photo_path);
+        $this->assertNotSame($oldReport, $student->medical_report_path);
+        $this->assertSame('NEW-REF', $student->medical_report_reference);
+        Storage::disk('local')->assertMissing($oldPhoto);
+        Storage::disk('local')->assertMissing($oldReport);
+        Storage::disk('local')->assertExists($student->profile_photo_path);
+        Storage::disk('local')->assertExists($student->medical_report_path);
+    }
+
+    public function test_edit_removes_photo_and_report_only_when_saved(): void
+    {
+        Storage::fake('local');
+        $owner = $this->makeOwner();
+        $student = $this->makeStudent();
+        $photo = $this->fakePngUpload()->store('student-photos', 'local');
+        $report = $this->fakePngUpload()->store('medical-reports', 'local');
+        $student->update(['profile_photo_path' => $photo, 'medical_report_path' => $report, 'medical_report_reference' => 'REF-123']);
+
+        $component = Livewire::actingAs($owner)->test(Edit::class, ['student' => $student])
+            ->call('markProfilePhotoForRemoval')
+            ->call('markMedicalReportForRemoval');
+
+        Storage::disk('local')->assertExists($photo);
+        Storage::disk('local')->assertExists($report);
+
+        $component->call('updateStudent');
+
+        $student->refresh();
+        $this->assertNull($student->profile_photo_path);
+        $this->assertNull($student->medical_report_path);
+        $this->assertNull($student->medical_report_reference);
+        Storage::disk('local')->assertMissing($photo);
+        Storage::disk('local')->assertMissing($report);
+    }
+
+    public function test_failed_edit_keeps_old_files_and_cleans_new_files(): void
+    {
+        Storage::fake('local');
+        $owner = $this->makeOwner();
+        $student = $this->makeStudent();
+        $category = $this->makeCategory(['is_active' => false]);
+        $oldPhoto = $this->fakePngUpload()->store('student-photos', 'local');
+        $student->update(['profile_photo_path' => $oldPhoto]);
+
+        Livewire::actingAs($owner)->test(Edit::class, ['student' => $student])
+            ->set('profilePhoto', $this->fakePngUpload())
+            ->set('selectedCategoryIds', [$category->id])
+            ->call('updateStudent')->assertHasErrors(['selectedCategoryIds']);
+
+        $student->refresh();
+        $this->assertSame($oldPhoto, $student->profile_photo_path);
+        Storage::disk('local')->assertExists($oldPhoto);
+        $this->assertCount(1, Storage::disk('local')->allFiles('student-photos'));
     }
 
     public function test_registration_summary_calculates_fee_and_training_totals(): void
@@ -293,7 +399,9 @@ class StudentManagementTest extends TestCase
             'required_training_hours' => '7.00',
             'status' => 'active',
         ]);
+        $student->profile_photo_path = $this->fakePngUpload()->store('student-photos', 'local');
         $student->medical_report_path = $this->fakePngUpload()->store('medical-reports', 'local');
+        $student->medical_report_reference = 'MED-SECURE-77';
         $student->save();
 
         $this->actingAs($owner)
@@ -307,10 +415,17 @@ class StudentManagementTest extends TestCase
             ->assertSee('12,000.00')
             ->assertSee('7.00 hrs')
             ->assertSee('Medical Report')
-            ->assertSee(route('admin.students.medical-report', $student));
+            ->assertSee(route('admin.students.medical-report', $student))
+            ->assertSee(route('admin.students.photo', $student))
+            ->assertSee('MED-SECURE-77');
 
         $this->actingAs($owner)
             ->get(route('admin.students.medical-report', $student))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+
+        $this->actingAs($owner)
+            ->get(route('admin.students.photo', $student))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png');
 
@@ -319,6 +434,10 @@ class StudentManagementTest extends TestCase
 
         $this->actingAs($coach)
             ->get(route('admin.students.medical-report', $student))
+            ->assertForbidden();
+
+        $this->actingAs($coach)
+            ->get(route('admin.students.photo', $student))
             ->assertForbidden();
     }
 

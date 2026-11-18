@@ -84,7 +84,7 @@ class AuditModelObserver
 
     private function sensitive(string $key): bool
     {
-        return preg_match('/password|secret|token|medical_report|remember|two_factor|passkey/i', $key) === 1;
+        return preg_match('/password|secret|token|profile_photo|medical_report|remember|two_factor|passkey/i', $key) === 1;
     }
 
     private function write(Model $model, string $action, ?array $before, ?array $after): void

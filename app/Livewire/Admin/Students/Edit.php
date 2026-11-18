@@ -29,7 +29,15 @@ class Edit extends Component
 
     public string $contact_number = '';
 
+    public ?TemporaryUploadedFile $profilePhoto = null;
+
     public ?TemporaryUploadedFile $medicalReport = null;
+
+    public string $medicalReportReference = '';
+
+    public bool $removeProfilePhoto = false;
+
+    public bool $removeMedicalReport = false;
 
     /** @var array<int, int|string> */
     public array $selectedCategoryIds = [];
@@ -48,12 +56,49 @@ class Edit extends Component
         $this->nic_number = $student->nic_number;
         $this->date_of_birth = $student->date_of_birth->format('Y-m-d');
         $this->contact_number = $student->contact_number;
+        $this->medicalReportReference = $student->medical_report_reference ?? '';
         $this->status = $student->status;
         $this->selectedCategoryIds = $student->vehicleCategories()
             ->wherePivot('status', 'active')
             ->pluck('vehicle_categories.id')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    public function updatedProfilePhoto(): void { $this->removeProfilePhoto = false; }
+
+    public function updatedMedicalReport(): void { $this->removeMedicalReport = false; }
+
+    public function markProfilePhotoForRemoval(): void
+    {
+        $this->authorizeStudentUpdate();
+        $this->profilePhoto = null;
+        $this->removeProfilePhoto = true;
+    }
+
+    public function undoProfilePhotoRemoval(): void
+    {
+        $this->authorizeStudentUpdate();
+        $this->removeProfilePhoto = false;
+    }
+
+    public function markMedicalReportForRemoval(): void
+    {
+        $this->authorizeStudentUpdate();
+        $this->medicalReport = null;
+        $this->removeMedicalReport = true;
+    }
+
+    public function undoMedicalReportRemoval(): void
+    {
+        $this->authorizeStudentUpdate();
+        $this->removeMedicalReport = false;
+    }
+
+    private function authorizeStudentUpdate(): void
+    {
+        $user = auth()->user();
+        abort_unless($user?->hasRole('Owner') && $user->can('students.update'), 403);
     }
 
     protected function rules(): array
@@ -69,7 +114,9 @@ class Edit extends Component
             ],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'contact_number' => ['required', 'string', 'max:25'],
+            'profilePhoto' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
             'medicalReport' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'medicalReportReference' => ['nullable', 'string', 'max:100'],
             'selectedCategoryIds' => ['present', 'array'],
             'selectedCategoryIds.*' => ['required', 'integer', 'distinct', 'exists:vehicle_categories,id'],
             'status' => ['required', Rule::in([Student::STATUS_ACTIVE, Student::STATUS_INACTIVE])],
@@ -88,6 +135,10 @@ class Edit extends Component
             'medicalReport.image' => 'Upload a JPG, JPEG, or PNG image.',
             'medicalReport.mimes' => 'Upload a JPG, JPEG, or PNG image.',
             'medicalReport.max' => 'The medical report image must not exceed 5 MB.',
+            'profilePhoto.image' => 'Upload a JPG, JPEG, or PNG profile photo.',
+            'profilePhoto.mimes' => 'Upload a JPG, JPEG, or PNG profile photo.',
+            'profilePhoto.max' => 'The profile photo must not exceed 5 MB.',
+            'medicalReportReference.max' => 'The medical report reference must not exceed 100 characters.',
             'selectedCategoryIds.required' => 'Select at least one vehicle category.',
             'selectedCategoryIds.min' => 'Select at least one vehicle category.',
             'selectedCategoryIds.*.exists' => 'One of the selected categories is no longer available.',
@@ -104,27 +155,32 @@ class Edit extends Component
         $this->address = trim($this->address);
         $this->nic_number = strtoupper(trim($this->nic_number));
         $this->contact_number = trim($this->contact_number);
+        $this->medicalReportReference = trim($this->medicalReportReference);
 
         $validated = $this->validate();
         $selectedIds = collect($validated['selectedCategoryIds'])->map(fn ($id) => (int) $id)->unique()->values();
         $studentId = $this->student->getKey();
+        $profilePhotoPath = null;
         $medicalReportPath = null;
 
-        if ($this->medicalReport) {
-            $storedPath = $this->medicalReport->store('medical-reports', 'local');
-
-            if (! is_string($storedPath)) {
-                throw ValidationException::withMessages([
-                    'medicalReport' => 'The medical report could not be stored. Please try again.',
-                ]);
+        try {
+            if ($this->profilePhoto) {
+                $profilePhotoPath = $this->profilePhoto->store('student-photos', 'local');
+                if (! is_string($profilePhotoPath)) {
+                    throw ValidationException::withMessages(['profilePhoto' => 'The profile photo could not be stored. Please try again.']);
+                }
             }
 
-            $medicalReportPath = $storedPath;
-        }
+            if ($this->medicalReport) {
+                $medicalReportPath = $this->medicalReport->store('medical-reports', 'local');
+                if (! is_string($medicalReportPath)) {
+                    throw ValidationException::withMessages(['medicalReport' => 'The medical report could not be stored. Please try again.']);
+                }
+            }
 
-        try {
-            DB::transaction(function () use ($validated, $selectedIds, $studentId, $medicalReportPath): void {
+            [$updatedStudent, $obsoletePaths] = DB::transaction(function () use ($validated, $selectedIds, $studentId, $profilePhotoPath, $medicalReportPath): array {
                 $student = Student::query()->lockForUpdate()->findOrFail($studentId);
+                $obsoletePaths = [];
                 $existingEnrollments = DB::table('student_vehicle_categories')
                     ->where('student_id', $studentId)
                     ->lockForUpdate()
@@ -151,8 +207,24 @@ class Edit extends Component
                 $student->contact_number = $validated['contact_number'];
                 $student->status = $validated['status'];
 
+                if ($profilePhotoPath !== null) {
+                    if ($student->profile_photo_path) $obsoletePaths[] = [$student->profile_photo_path, 'student-photos'];
+                    $student->profile_photo_path = $profilePhotoPath;
+                } elseif ($this->removeProfilePhoto && $student->profile_photo_path) {
+                    $obsoletePaths[] = [$student->profile_photo_path, 'student-photos'];
+                    $student->profile_photo_path = null;
+                }
+
                 if ($medicalReportPath !== null) {
+                    if ($student->medical_report_path) $obsoletePaths[] = [$student->medical_report_path, 'medical-reports'];
                     $student->medical_report_path = $medicalReportPath;
+                    $student->medical_report_reference = $validated['medicalReportReference'] ?: null;
+                } elseif ($this->removeMedicalReport) {
+                    if ($student->medical_report_path) $obsoletePaths[] = [$student->medical_report_path, 'medical-reports'];
+                    $student->medical_report_path = null;
+                    $student->medical_report_reference = null;
+                } else {
+                    $student->medical_report_reference = $validated['medicalReportReference'] ?: null;
                 }
 
                 $student->save();
@@ -185,14 +257,19 @@ class Edit extends Component
                         ->update(['status' => 'inactive', 'updated_at' => now()]);
                 }
 
-                $this->student = $student->fresh();
+                return [$student->fresh(), $obsoletePaths];
             });
+
+            $this->student = $updatedStudent;
         } catch (Throwable $exception) {
-            if ($medicalReportPath) {
-                Storage::disk('local')->delete($medicalReportPath);
-            }
+            $this->deleteManagedFile($profilePhotoPath, 'student-photos');
+            $this->deleteManagedFile($medicalReportPath, 'medical-reports');
 
             throw $exception;
+        }
+
+        foreach ($obsoletePaths as [$path, $directory]) {
+            $this->deleteManagedFile($path, $directory);
         }
 
         session()->flash('success', 'Student details updated successfully.');
@@ -243,5 +320,14 @@ class Edit extends Component
             'totalCourseFee' => number_format($totalFeeCents / 100, 2),
             'totalTrainingHours' => number_format($totalTrainingHundredths / 100, 2),
         ])->layout('layouts.admin');
+    }
+
+    private function deleteManagedFile(?string $path, string $directory): void
+    {
+        if (is_string($path)
+            && preg_match('/\\A'.preg_quote($directory, '/').'\\/[A-Za-z0-9._-]+\\z/D', $path) === 1
+            && ! str_contains(basename($path), '..')) {
+            Storage::disk('local')->delete($path);
+        }
     }
 }

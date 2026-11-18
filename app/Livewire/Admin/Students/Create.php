@@ -32,7 +32,11 @@ class Create extends Component
 
     public string $contact_number = '';
 
+    public ?TemporaryUploadedFile $profilePhoto = null;
+
     public ?TemporaryUploadedFile $medicalReport = null;
+
+    public string $medicalReportReference = '';
 
     /** @var array<int, int|string> */
     public array $selectedCategoryIds = [];
@@ -65,7 +69,9 @@ class Create extends Component
             'nic_number' => ['required', 'string', 'max:30', Rule::unique('students', 'nic_number')],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'contact_number' => ['required', 'string', 'max:25'],
+            'profilePhoto' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
             'medicalReport' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'medicalReportReference' => ['nullable', 'string', 'max:100'],
             'selectedCategoryIds' => ['required', 'array', 'min:1'],
             'selectedCategoryIds.*' => ['required', 'integer', 'distinct', 'exists:vehicle_categories,id'],
             'paymentPlanType' => ['required', Rule::in([StudentPaymentPlan::TYPE_FULL, StudentPaymentPlan::TYPE_TWO_INSTALLMENTS, StudentPaymentPlan::TYPE_THREE_INSTALLMENTS])],
@@ -89,6 +95,10 @@ class Create extends Component
             'medicalReport.image' => 'Upload a JPG, JPEG, or PNG image.',
             'medicalReport.mimes' => 'Upload a JPG, JPEG, or PNG image.',
             'medicalReport.max' => 'The medical report image must not exceed 5 MB.',
+            'profilePhoto.image' => 'Upload a JPG, JPEG, or PNG profile photo.',
+            'profilePhoto.mimes' => 'Upload a JPG, JPEG, or PNG profile photo.',
+            'profilePhoto.max' => 'The profile photo must not exceed 5 MB.',
+            'medicalReportReference.max' => 'The medical report reference must not exceed 100 characters.',
             'selectedCategoryIds.required' => 'Select at least one vehicle category.',
             'selectedCategoryIds.min' => 'Select at least one vehicle category.',
             'selectedCategoryIds.*.exists' => 'One of the selected categories is no longer available.',
@@ -105,28 +115,32 @@ class Create extends Component
         $this->address = trim($this->address);
         $this->nic_number = strtoupper(trim($this->nic_number));
         $this->contact_number = trim($this->contact_number);
+        $this->medicalReportReference = trim($this->medicalReportReference);
 
         $validated = $this->validate();
         if (Money::toCents($validated['advanceAmount']) > 0) {
             abort_unless($user->can('payments.manage'), 403);
         }
         $selectedIds = collect($validated['selectedCategoryIds'])->map(fn ($id) => (int) $id)->unique()->values();
+        $profilePhotoPath = null;
         $medicalReportPath = null;
 
-        if ($this->medicalReport) {
-            $storedPath = $this->medicalReport->store('medical-reports', 'local');
-
-            if (! is_string($storedPath)) {
-                throw ValidationException::withMessages([
-                    'medicalReport' => 'The medical report could not be stored. Please try again.',
-                ]);
+        try {
+            if ($this->profilePhoto) {
+                $profilePhotoPath = $this->profilePhoto->store('student-photos', 'local');
+                if (! is_string($profilePhotoPath)) {
+                    throw ValidationException::withMessages(['profilePhoto' => 'The profile photo could not be stored. Please try again.']);
+                }
             }
 
-            $medicalReportPath = $storedPath;
-        }
+            if ($this->medicalReport) {
+                $medicalReportPath = $this->medicalReport->store('medical-reports', 'local');
+                if (! is_string($medicalReportPath)) {
+                    throw ValidationException::withMessages(['medicalReport' => 'The medical report could not be stored. Please try again.']);
+                }
+            }
 
-        try {
-            $student = DB::transaction(function () use ($validated, $selectedIds, $medicalReportPath, $user): Student {
+            $student = DB::transaction(function () use ($validated, $selectedIds, $profilePhotoPath, $medicalReportPath, $user): Student {
                 $categories = VehicleCategory::active()
                     ->whereIn('id', $selectedIds)
                     ->orderBy('id')
@@ -146,7 +160,9 @@ class Create extends Component
                     'nic_number' => $validated['nic_number'],
                     'date_of_birth' => $validated['date_of_birth'],
                     'contact_number' => $validated['contact_number'],
+                    'profile_photo_path' => $profilePhotoPath,
                     'medical_report_path' => $medicalReportPath,
+                    'medical_report_reference' => $validated['medicalReportReference'] ?: null,
                     'status' => Student::STATUS_ACTIVE,
                 ]);
 
@@ -183,9 +199,7 @@ class Create extends Component
                 return $student;
             });
         } catch (Throwable $exception) {
-            if ($medicalReportPath) {
-                Storage::disk('local')->delete($medicalReportPath);
-            }
+            Storage::disk('local')->delete(array_values(array_filter([$profilePhotoPath, $medicalReportPath])));
 
             throw $exception;
         }

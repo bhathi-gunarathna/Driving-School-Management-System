@@ -20,7 +20,9 @@ class Student extends Model
         'nic_number',
         'date_of_birth',
         'contact_number',
+        'profile_photo_path',
         'medical_report_path',
+        'medical_report_reference',
         'status',
     ];
 
