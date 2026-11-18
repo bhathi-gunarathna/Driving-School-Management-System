@@ -2,14 +2,19 @@
 
 namespace App\Livewire\Admin\Coaches;
 
+use App\Actions\Fortify\PasswordValidationRules;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class Edit extends Component
 {
+    use PasswordValidationRules;
+
     public User $coach;
 
     public string $name = '';
@@ -19,6 +24,10 @@ class Edit extends Component
     public string $phone = '';
 
     public bool $is_active = true;
+
+    public ?string $password = null;
+
+    public ?string $password_confirmation = null;
 
     public function mount(User $coach): void
     {
@@ -45,6 +54,7 @@ class Edit extends Component
             ],
             'phone' => ['required', 'string', 'max:20'],
             'is_active' => ['present', 'boolean'],
+            'password' => $this->passwordRules(required: false),
         ];
     }
 
@@ -67,12 +77,15 @@ class Edit extends Component
         $this->email = strtolower(trim($this->email));
         $this->name = trim($this->name);
         $this->phone = trim($this->phone);
+        $this->password = $this->password === '' ? null : $this->password;
+        $this->password_confirmation = $this->password_confirmation === '' ? null : $this->password_confirmation;
 
         $validated = $this->validate();
         $coachId = $this->coach->getKey();
         $authUser = $user;
+        $passwordChanged = filled($validated['password'] ?? null);
 
-        DB::transaction(function () use ($validated, $coachId, $authUser): void {
+        DB::transaction(function () use ($validated, $coachId, $authUser, $passwordChanged): void {
             $coach = User::role('Coach')
                 ->lockForUpdate()
                 ->findOrFail($coachId);
@@ -88,11 +101,41 @@ class Edit extends Component
             $coach->phone = $validated['phone'];
             $coach->is_active = $validated['is_active'];
 
+            if ($passwordChanged) {
+                $coach->password = Hash::make($validated['password']);
+            }
+
             $coach->save();
+
+            if ($passwordChanged && config('session.driver') === 'database') {
+                $sessionConnection = DB::connection(config('session.connection'));
+                $sessionTable = config('session.table', 'sessions');
+
+                if ($sessionConnection->getSchemaBuilder()->hasTable($sessionTable)) {
+                    $sessionConnection->table($sessionTable)
+                        ->where('user_id', $coachId)
+                        ->delete();
+                }
+            }
+
             $this->coach = $coach;
         });
 
-        session()->flash('success', 'Coach details updated successfully.');
+        $this->password = '';
+        $this->password_confirmation = '';
+
+        if ($passwordChanged && (string) $coachId === (string) $authUser->getAuthIdentifier()) {
+            auth()->logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+            session()->flash('status', 'Password updated. Sign in again using the new password.');
+
+            return $this->redirectRoute('login', navigate: false);
+        }
+
+        session()->flash('success', $passwordChanged
+            ? 'Coach details and login credentials updated successfully.'
+            : 'Coach details updated successfully.');
 
         return $this->redirectRoute('admin.coaches.view', ['coach' => $coachId]);
     }

@@ -42,6 +42,30 @@
                 </div>
             </section>
 
+            <section class="border-t border-slate-100 pt-7" x-data="{ showPassword: false, showConfirmation: false }">
+                <h3 class="text-sm font-bold text-slate-800">Login Credentials</h3>
+                <p class="mb-5 mt-1 text-xs leading-5 text-slate-500">Leave both password fields blank to keep the current password. Saving a new password signs the Coach out of existing database-backed sessions.</p>
+
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label for="coach-password" class="mb-2 block text-sm font-medium text-slate-700">New password</label>
+                        <div class="relative">
+                            <input id="coach-password" type="password" x-bind:type="showPassword ? 'text' : 'password'" wire:model="password" autocomplete="new-password" class="w-full rounded-xl border border-slate-200 px-4 py-3 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-3 my-auto h-9 px-2 text-xs font-semibold text-blue-600 hover:text-blue-700" x-text="showPassword ? 'Hide' : 'Show'" aria-label="Show or hide new password"></button>
+                        </div>
+                        @error('password') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label for="coach-password-confirmation" class="mb-2 block text-sm font-medium text-slate-700">Confirm new password</label>
+                        <div class="relative">
+                            <input id="coach-password-confirmation" type="password" x-bind:type="showConfirmation ? 'text' : 'password'" wire:model="password_confirmation" autocomplete="new-password" class="w-full rounded-xl border border-slate-200 px-4 py-3 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" @click="showConfirmation = !showConfirmation" class="absolute inset-y-0 right-3 my-auto h-9 px-2 text-xs font-semibold text-blue-600 hover:text-blue-700" x-text="showConfirmation ? 'Hide' : 'Show'" aria-label="Show or hide password confirmation"></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="border-t border-slate-100 pt-7">
                 <h3 class="mb-5 text-sm font-bold text-slate-800">Account Status</h3>
                 <label for="coach-active" class="flex cursor-pointer items-start gap-3">

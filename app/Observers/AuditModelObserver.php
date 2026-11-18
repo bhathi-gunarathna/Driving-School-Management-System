@@ -53,6 +53,33 @@ class AuditModelObserver
         if ($model instanceof StudentPayment && array_diff(array_keys($changes), ['receipt_number', 'updated_at']) === []) {
             return;
         }
+
+        if ($model instanceof User && $model->hasRole('Coach')) {
+            if (array_key_exists('email', $changes)) {
+                $this->write($model, 'email_changed',
+                    ['email' => $model->getRawOriginal('email')],
+                    ['email' => $changes['email']]
+                );
+                unset($changes['email']);
+            }
+
+            if (array_key_exists('is_active', $changes)) {
+                $wasActive = (bool) $model->getRawOriginal('is_active');
+                $isActive = (bool) $changes['is_active'];
+                $this->write($model, $isActive ? 'activated' : 'deactivated',
+                    ['is_active' => $wasActive],
+                    ['is_active' => $isActive]
+                );
+                unset($changes['is_active']);
+            }
+
+            if (array_key_exists('password', $changes)) {
+                // Record the event without persisting either the plain password or its hash.
+                $this->write($model, 'password_reset', null, null);
+                unset($changes['password']);
+            }
+        }
+
         $before = [];
         $after = [];
         foreach (array_keys($changes) as $key) {
@@ -92,12 +119,20 @@ class AuditModelObserver
         try {
             [$module, $label] = self::MODULES[$model::class];
             $actor = auth()->user();
+            $description = match ($action) {
+                'email_changed' => 'Coach login email changed',
+                'password_reset' => 'Coach password reset by administrator',
+                'activated' => 'Coach account activated',
+                'deactivated' => 'Coach account deactivated',
+                default => ucfirst($label).' '.$action,
+            };
+
             AuditLog::create([
                 'user_id' => $actor?->getAuthIdentifier(),
                 'user_name' => $actor?->name ?? 'System',
                 'action' => $action,
                 'module' => $module,
-                'description' => ucfirst($label).' '.$action,
+                'description' => $description,
                 'related_type' => class_basename($model),
                 'related_id' => $model->getKey(),
                 'previous_values' => $before,
