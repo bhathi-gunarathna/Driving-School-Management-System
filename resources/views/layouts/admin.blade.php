@@ -22,6 +22,12 @@
         request()->routeIs('admin.finance.overview') => 'Financial Overview',
         request()->routeIs('admin.finance.income') => 'Income Reports',
         request()->routeIs('admin.finance.outstanding') => 'Outstanding Payments',
+        request()->routeIs('admin.expenses.create') => 'Record Expense',
+        request()->routeIs('admin.expenses.edit') => 'Edit Expense',
+        request()->routeIs('admin.expenses.view') => 'Expense Details',
+        request()->routeIs('admin.expenses.categories') => 'Expense Categories',
+        request()->routeIs('admin.expenses.reports') => 'Expense Reports',
+        request()->routeIs('admin.expenses.*') => 'Additional Expenses',
         request()->routeIs('admin.coaches.create') => 'Register Coach',
         request()->routeIs('admin.coaches.edit') => 'Edit Coach',
         request()->routeIs('admin.coaches.view') => 'Coach Profile',
@@ -172,6 +178,13 @@
                             <a href="{{ route('admin.finance.outstanding') }}" class="sidebar-link {{ request()->routeIs('admin.finance.outstanding') ? 'sidebar-active' : '' }}"><span aria-hidden="true">OS</span><span>Outstanding Payments</span></a>
                         </div>
                     @endcan
+                    @can('expenses.view')
+                        <div class="mt-3 space-y-1 border-t border-slate-200/70 pt-3">
+                            <a href="{{ route('admin.expenses.index') }}" class="sidebar-link {{ request()->routeIs('admin.expenses.index', 'admin.expenses.create', 'admin.expenses.edit', 'admin.expenses.view') ? 'sidebar-active' : '' }}"><span aria-hidden="true">EX</span><span>Additional Expenses</span></a>
+                            <a href="{{ route('admin.expenses.reports') }}" class="sidebar-link {{ request()->routeIs('admin.expenses.reports') ? 'sidebar-active' : '' }}"><span aria-hidden="true">ER</span><span>Expense Reports</span></a>
+                            @can('expenses.manage_categories')<a href="{{ route('admin.expenses.categories') }}" class="sidebar-link {{ request()->routeIs('admin.expenses.categories') ? 'sidebar-active' : '' }}"><span aria-hidden="true">EC</span><span>Expense Categories</span></a>@endcan
+                        </div>
+                    @endcan
 
                 </div>
 
@@ -279,6 +292,7 @@
                 @can('trials.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.trials.index') }}">Trials</a>@endcan
                 @can('coaches.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.coaches.index') }}">Coaches</a>@endcan
                 @can('financial-reports.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.finance.overview') }}">Finance</a>@endcan
+                @can('expenses.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.expenses.index') }}">Expenses</a>@endcan
                 @can('settings.manage')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.settings.edit') }}">Settings</a>@endcan
                 @can('audit-logs.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.audit.index') }}">Audit</a>@endcan
             </nav>

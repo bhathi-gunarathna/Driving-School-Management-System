@@ -15,6 +15,8 @@ use App\Models\TrialResultHistory;
 use App\Models\User;
 use App\Models\VehicleCategory;
 use App\Models\Vehicle;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Observers\AuditModelObserver;
 use Illuminate\Support\ServiceProvider;
 use App\Http\Responses\LoginResponse;
@@ -39,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach ([Student::class, User::class, Vehicle::class, VehicleCategory::class, StudentVehicleCategory::class, StudentPayment::class, TrainingCoachAssignment::class, TrainingSession::class, Trial::class, TrialParticipant::class, TrialCategoryResult::class, TrialResultHistory::class, SystemSetting::class] as $model) {
+        foreach ([Student::class, User::class, Vehicle::class, VehicleCategory::class, Expense::class, ExpenseCategory::class, StudentVehicleCategory::class, StudentPayment::class, TrainingCoachAssignment::class, TrainingSession::class, Trial::class, TrialParticipant::class, TrialCategoryResult::class, TrialResultHistory::class, SystemSetting::class] as $model) {
             $model::observe(AuditModelObserver::class);
         }
 

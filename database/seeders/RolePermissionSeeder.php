@@ -72,6 +72,13 @@ class RolePermissionSeeder extends Seeder
             'financial-reports.export',
             'audit-logs.view',
 
+            // Expenses
+            'expenses.view',
+            'expenses.create',
+            'expenses.edit',
+            'expenses.manage_categories',
+            'expenses.delete',
+
             // Settings
             'settings.manage',
         ];

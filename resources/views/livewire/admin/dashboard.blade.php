@@ -75,6 +75,24 @@
         </section>
     @endif
 
+    @if($expensesVisible)
+        <section class="space-y-5 rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5 shadow-sm sm:p-6">
+            <div class="flex flex-wrap items-end justify-between gap-3"><div><h2 class="text-lg font-bold text-slate-900">Expense Summary</h2><p class="mt-1 text-sm text-slate-500">Additional operating expenses, kept separate from student payment totals.</p></div><div class="flex flex-wrap gap-2"><a href="{{ route('admin.expenses.index') }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Manage Expenses</a><a href="{{ route('admin.expenses.reports') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Expense Reports</a></div></div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach([
+                    ["Today's Expenses", $expenseSummary['today']],
+                    ['This Month\'s Expenses', $expenseSummary['month']],
+                    ['This Year\'s Expenses', $expenseSummary['year']],
+                    ['Total Expenses', $expenseSummary['total']],
+                    ['Vehicle-related Expenses', $expenseSummary['vehicle']],
+                    ['Petty Cash Expenses', $expenseSummary['petty_cash']],
+                ] as [$label, $value])
+                    <article class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p><p class="mt-2 text-xl font-bold text-slate-900">{{ \App\Support\Lkr::format($value) }}</p></article>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="font-bold">Recent Student Registrations</h2><div class="mt-3 divide-y divide-slate-100">@forelse($recentStudents as $student)<a href="{{ route('admin.students.view',$student) }}" class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><span><strong>{{ $student->full_name }}</strong><span class="ml-2 text-xs text-slate-500">{{ $student->student_number }}</span></span><span class="text-xs text-slate-500">{{ $student->created_at->format(config('school.date_format', 'd M Y')) }}</span></a>@empty<p class="py-5 text-sm text-slate-500">No student registrations yet.</p>@endforelse</div></section>
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-center justify-between"><div><h2 class="font-bold">Upcoming Trials</h2><p class="mt-1 text-xs text-slate-500">Next scheduled examinations</p></div><a href="{{ route('admin.trials.index') }}" class="text-sm font-semibold text-blue-700">View trials</a></div><div class="mt-3 divide-y divide-slate-100">@forelse($upcomingTrials as $trial)<div class="flex items-center justify-between gap-3 py-3"><div><p class="text-sm font-semibold">{{ $trial->trial_number }}</p><p class="text-xs text-slate-500">{{ $trial->trial_date->format(config('school.date_format', 'd M Y')) }} · {{ $trial->location ?: 'Location not set' }}</p></div><span class="text-xs text-slate-500">{{ $trial->participants_count }} students</span></div>@empty<p class="py-5 text-sm text-slate-500">No upcoming trials.</p>@endforelse</div></section>

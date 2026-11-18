@@ -4,6 +4,8 @@ namespace App\Observers;
 
 use App\Models\AuditLog;
 use App\Models\Student;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\StudentPayment;
 use App\Models\StudentVehicleCategory;
 use App\Models\SystemSetting;
@@ -27,6 +29,8 @@ class AuditModelObserver
         User::class => ['coaches', 'coach'],
         VehicleCategory::class => ['vehicle-categories', 'vehicle category'],
         Vehicle::class => ['vehicles', 'vehicle'],
+        Expense::class => ['expenses', 'expense'],
+        ExpenseCategory::class => ['expenses', 'expense category'],
         StudentVehicleCategory::class => ['student-enrollments', 'student category enrollment'],
         StudentPayment::class => ['payments', 'payment receipt'],
         TrainingCoachAssignment::class => ['training', 'coach assignment'],
@@ -96,6 +100,19 @@ class AuditModelObserver
         }
     }
 
+    public function deleted(Model $model): void
+    {
+        if (! $model instanceof Expense && ! $model instanceof ExpenseCategory) {
+            return;
+        }
+
+        if (! $this->shouldTrack($model)) {
+            return;
+        }
+
+        $this->write($model, 'deleted', $this->safeValues($model->getRawOriginal()), null);
+    }
+
     private function shouldTrack(Model $model): bool
     {
         if (! isset(self::MODULES[$model::class])) {
@@ -113,7 +130,7 @@ class AuditModelObserver
 
     private function sensitive(string $key): bool
     {
-        return preg_match('/password|secret|token|profile_photo|medical_report|document_path|remember|two_factor|passkey/i', $key) === 1;
+        return preg_match('/password|secret|token|profile_photo|medical_report|receipt_path|document_path|remember|two_factor|passkey/i', $key) === 1;
     }
 
     private function write(Model $model, string $action, ?array $before, ?array $after): void

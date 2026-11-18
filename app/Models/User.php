@@ -71,4 +71,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(TrialCategoryResult::class, 'recorded_by');
     }
+
+    public function createdExpenses(): HasMany
+    {
+        return $this->hasMany(Expense::class, 'created_by');
+    }
 }

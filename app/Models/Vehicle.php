@@ -54,4 +54,9 @@ class Vehicle extends Model
     {
         return $this->hasMany(VehicleDocumentRenewal::class)->latest('recorded_on')->latest('id');
     }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
 }

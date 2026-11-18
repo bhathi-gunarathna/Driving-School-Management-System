@@ -40,8 +40,16 @@ use App\Livewire\Admin\Finance\Overview as FinancialOverview;
 use App\Livewire\Admin\Finance\IncomeReport;
 use App\Livewire\Admin\Finance\OutstandingReport;
 use App\Http\Controllers\Admin\FinancialExportController;
+use App\Http\Controllers\Admin\ExpenseExportController;
+use App\Http\Controllers\Admin\ExpenseReceiptController;
 use App\Livewire\Admin\Settings\Edit as EditSystemSettings;
 use App\Livewire\Admin\Audit\Index as AuditLogIndex;
+use App\Livewire\Admin\Expenses\Index as ExpenseIndex;
+use App\Livewire\Admin\Expenses\Create as CreateExpense;
+use App\Livewire\Admin\Expenses\Edit as EditExpense;
+use App\Livewire\Admin\Expenses\View as ViewExpense;
+use App\Livewire\Admin\Expenses\Categories as ExpenseCategories;
+use App\Livewire\Admin\Expenses\Reports as ExpenseReports;
 use App\Livewire\Notifications\Index as NotificationIndex;
 
 
@@ -82,6 +90,19 @@ Route::middleware('auth')->group(function () {
                     Route::get('/monthly.csv', [FinancialExportController::class, 'monthly'])->name('monthly');
                     Route::get('/outstanding.csv', [FinancialExportController::class, 'outstanding'])->name('outstanding');
                 });
+            });
+
+            Route::prefix('expenses')->name('expenses.')->group(function () {
+                Route::middleware('permission:expenses.view')->group(function () {
+                    Route::get('/', ExpenseIndex::class)->name('index');
+                    Route::get('/reports', ExpenseReports::class)->name('reports');
+                    Route::get('/export.csv', ExpenseExportController::class)->name('export');
+                    Route::get('/{expense}/receipt', ExpenseReceiptController::class)->whereNumber('expense')->name('receipt');
+                    Route::get('/{expense}', ViewExpense::class)->whereNumber('expense')->name('view');
+                });
+                Route::middleware('permission:expenses.create')->get('/create', CreateExpense::class)->name('create');
+                Route::middleware('permission:expenses.edit')->get('/{expense}/edit', EditExpense::class)->whereNumber('expense')->name('edit');
+                Route::middleware('permission:expenses.manage_categories')->get('/categories', ExpenseCategories::class)->name('categories');
             });
 
 

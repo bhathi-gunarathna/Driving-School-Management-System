@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Student;
+use App\Models\Expense;
 use App\Models\StudentPayment;
 use App\Models\StudentPaymentPlan;
 use App\Models\SystemSetting;
@@ -42,6 +43,31 @@ class Dashboard extends Component
             'licenses_expiring' => 0,
         ];
         $vehicleAlerts = collect();
+        $expensesVisible = $user->hasRole('Owner') && $user->can('expenses.view');
+        $expenseSummary = [
+            'today' => 0, 'month' => 0, 'year' => 0, 'total' => 0,
+            'vehicle' => 0, 'petty_cash' => 0,
+        ];
+
+        if ($expensesVisible) {
+            $expenseSummary = (array) DB::table('expenses')
+                ->join('expense_categories', 'expenses.expense_category_id', '=', 'expense_categories.id')
+                ->selectRaw('COALESCE(SUM(CASE WHEN expenses.expense_date = ? THEN expenses.amount ELSE 0 END), 0) as today_total', [$today->toDateString()])
+                ->selectRaw('COALESCE(SUM(CASE WHEN expenses.expense_date >= ? AND expenses.expense_date <= ? THEN expenses.amount ELSE 0 END), 0) as month_total', [$today->startOfMonth()->toDateString(), $today->toDateString()])
+                ->selectRaw('COALESCE(SUM(CASE WHEN expenses.expense_date >= ? AND expenses.expense_date <= ? THEN expenses.amount ELSE 0 END), 0) as year_total', [$today->startOfYear()->toDateString(), $today->toDateString()])
+                ->selectRaw('COALESCE(SUM(expenses.amount), 0) as all_total')
+                ->selectRaw('COALESCE(SUM(CASE WHEN expenses.vehicle_id IS NOT NULL THEN expenses.amount ELSE 0 END), 0) as vehicle_total')
+                ->selectRaw("COALESCE(SUM(CASE WHEN expense_categories.name = ? THEN expenses.amount ELSE 0 END), 0) as petty_cash_total", ['Petty Cash'])
+                ->first();
+            $expenseSummary = [
+                'today' => $expenseSummary['today_total'] ?? 0,
+                'month' => $expenseSummary['month_total'] ?? 0,
+                'year' => $expenseSummary['year_total'] ?? 0,
+                'total' => $expenseSummary['all_total'] ?? 0,
+                'vehicle' => $expenseSummary['vehicle_total'] ?? 0,
+                'petty_cash' => $expenseSummary['petty_cash_total'] ?? 0,
+            ];
+        }
 
         if ($vehicleAlertsVisible) {
             $schoolTimezone = SystemSetting::query()->value('timezone');
@@ -103,6 +129,8 @@ class Dashboard extends Component
             'vehicleSummary' => $vehicleSummary,
             'vehicleAlerts' => $vehicleAlerts,
             'vehicleThroughLabel' => isset($vehicleToday) ? $vehicleToday->addDays(30)->format(config('school.date_format', 'd M Y')) : null,
+            'expensesVisible' => $expensesVisible,
+            'expenseSummary' => $expenseSummary,
             'receivedTotal' => $receivedTotal,
             'outstandingTotal' => $outstandingTotal,
             'recentPayments' => $recentPayments,
