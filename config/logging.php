@@ -65,6 +65,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'password_reset_mail' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/password-reset-mail.log'),
+            'level' => 'debug',
+            'tap' => [App\Logging\RedactPasswordResetTokens::class],
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

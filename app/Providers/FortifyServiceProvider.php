@@ -14,7 +14,10 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\SuccessfulPasswordResetLinkRequestResponse;
 use App\Http\Responses\LoginResponse;
+use App\Http\Responses\PasswordResetLinkRequestResponse;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -37,6 +40,14 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Fortify::loginView(fn () => view('auth.login'));
+        Fortify::requestPasswordResetLinkView(fn (Request $request) => view('auth.forgot-password', compact('request')));
+        Fortify::resetPasswordView(fn (Request $request) => view('auth.reset-password', compact('request')));
+
+        // Keep account discovery private by returning the same response for
+        // known, unknown, and throttled reset-link requests.
+        $this->app->bind(FailedPasswordResetLinkRequestResponse::class, PasswordResetLinkRequestResponse::class);
+        $this->app->bind(SuccessfulPasswordResetLinkRequestResponse::class, PasswordResetLinkRequestResponse::class);
+
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
