@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\StudentPaymentPlan;
 use App\Models\SystemSetting;
 use App\Models\Trial;
+use App\Models\Vehicle;
 use App\Services\SchoolNotificationService;
 use App\Services\TrainingProgress;
 use Carbon\CarbonImmutable;
@@ -13,7 +14,7 @@ use Illuminate\Console\Command;
 class SendSchoolNotifications extends Command
 {
     protected $signature = 'school:send-notifications';
-    protected $description = 'Send due in-app notifications for trials, training, and payment follow-up.';
+    protected $description = 'Send due in-app notifications for trials, training, payment follow-up, and vehicle documents.';
 
     public function handle(SchoolNotificationService $notifications): int
     {
@@ -27,7 +28,7 @@ class SendSchoolNotifications extends Command
             return self::SUCCESS;
         }
         $today = $now->startOfDay();
-        $through = $today->addDays(7)->toDateString();
+        $through = $today->addDays(30)->toDateString();
         $trials = Trial::upcoming()->whereDate('trial_date', '<=', $through)
             ->with(['participants.student', 'participants.categoryResults.enrollment.vehicleCategory', 'participants.categoryResults.enrollment.trainingSessions' => fn ($query) => $query->where('status', 'completed')])
             ->get();
@@ -64,6 +65,59 @@ class SendSchoolNotifications extends Command
                 $notifications->sendOnce($owner, 'payment-followup:'.$plan->getKey().':'.$weekKey, 'Payment follow-up',
                     $plan->student->full_name.' has an outstanding course balance that has not been updated in at least seven days.',
                     route('admin.finance.outstanding'), 'payment');
+            }
+        }
+
+        $owners = $notifications->owners();
+        $vehiclesWithExpiringDocuments = Vehicle::query()
+            ->whereIn('status', ['active', 'maintenance'])
+            ->where(function ($query) use ($through): void {
+                $query->whereDate('insurance_expiry_date', '<=', $through)
+                    ->orWhereDate('revenue_license_expiry_date', '<=', $through);
+            })
+            ->get();
+
+        foreach ($vehiclesWithExpiringDocuments as $vehicle) {
+            foreach ([
+                'insurance' => ['date' => 'insurance_expiry_date', 'label' => 'insurance'],
+                'revenue_license' => ['date' => 'revenue_license_expiry_date', 'label' => 'revenue license'],
+            ] as $type => $document) {
+                $expiryDate = $vehicle->{$document['date']};
+                if (! $expiryDate) {
+                    continue;
+                }
+
+                $daysRemaining = (int) $today->diffInDays($expiryDate->startOfDay(), false);
+                if (in_array($daysRemaining, [30, 14, 7], true)) {
+                    $eventOffset = (string) $daysRemaining;
+                    $title = ucfirst($document['label']).' expires soon';
+                    $message = 'Vehicle '.$vehicle->registration_number.' '.$document['label'].' expires in '.$daysRemaining.' days ('.$expiryDate->format('d M Y').').';
+                } elseif ($daysRemaining < 0) {
+                    $eventOffset = 'expired';
+                    $title = ucfirst($document['label']).' expired';
+                    $message = 'Vehicle '.$vehicle->registration_number.' '.$document['label'].' expired on '.$expiryDate->format('d M Y').'.';
+                } else {
+                    continue;
+                }
+
+                $eventKey = 'vehicle-document-expiry:'.$vehicle->getKey().':'.$type.':'.$expiryDate->toDateString().':'.$eventOffset;
+                foreach ($owners as $owner) {
+                    $notifications->sendOnce(
+                        $owner,
+                        $eventKey,
+                        $title,
+                        $message,
+                        route('admin.vehicles.view', $vehicle),
+                        'vehicle',
+                        [
+                            'vehicle_id' => $vehicle->getKey(),
+                            'registration_number' => $vehicle->registration_number,
+                            'document_type' => $type,
+                            'alert_type' => $eventOffset,
+                            'expiry_date' => $expiryDate->toDateString(),
+                        ]
+                    );
+                }
             }
         }
 

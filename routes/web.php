@@ -10,6 +10,13 @@ use App\Livewire\Admin\VehicleCategories\Create as CreateVehicleCategory;
 use App\Livewire\Admin\VehicleCategories\Edit as EditVehicleCategory;
 use App\Livewire\Admin\VehicleCategories\Index as VehicleCategoryIndex;
 use App\Livewire\Admin\VehicleCategories\View as ViewVehicleCategory;
+use App\Http\Controllers\Admin\Vehicles\VehicleDocumentController;
+use App\Livewire\Admin\Vehicles\Create as CreateVehicle;
+use App\Livewire\Admin\Vehicles\Edit as EditVehicle;
+use App\Livewire\Admin\Vehicles\Index as VehicleIndex;
+use App\Livewire\Admin\Vehicles\Expiry as VehicleExpiry;
+use App\Livewire\Admin\Vehicles\Notifications as VehicleNotifications;
+use App\Livewire\Admin\Vehicles\View as ViewVehicle;
 use App\Http\Controllers\Admin\Students\MedicalReportController;
 use App\Http\Controllers\Admin\Students\StudentPhotoController;
 use App\Livewire\Admin\Students\Create as CreateStudent;
@@ -169,6 +176,27 @@ Route::middleware('auth')->group(function () {
             Route::middleware('permission:vehicle-categories.view')->group(function () {
                 Route::get('/', VehicleCategoryIndex::class)->name('index');
                 Route::get('/{category}', ViewVehicleCategory::class)->whereNumber('category')->name('view');
+            });
+        });
+
+    Route::middleware('role:Owner')
+        ->prefix('admin/vehicles')
+        ->name('admin.vehicles.')
+        ->group(function () {
+            Route::middleware('permission:vehicles.manage')->group(function () {
+                Route::get('/create', CreateVehicle::class)->name('create');
+                Route::get('/{vehicle}/edit', EditVehicle::class)->whereNumber('vehicle')->name('edit');
+            });
+
+            Route::middleware('permission:vehicles.view')->group(function () {
+                Route::get('/', VehicleIndex::class)->name('index');
+                Route::get('/document-expiry', VehicleExpiry::class)->name('expiry');
+                Route::get('/notification-history', VehicleNotifications::class)->name('notifications');
+                Route::get('/{vehicle}/documents/{type}', [VehicleDocumentController::class, 'current'])
+                    ->whereNumber('vehicle')->whereIn('type', ['insurance', 'revenue-license'])->name('document');
+                Route::get('/renewal-documents/{renewal}', [VehicleDocumentController::class, 'renewal'])
+                    ->whereNumber('renewal')->name('renewal-document');
+                Route::get('/{vehicle}', ViewVehicle::class)->whereNumber('vehicle')->name('view');
             });
         });
 

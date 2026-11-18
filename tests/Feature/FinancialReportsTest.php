@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class FinancialReportsTest extends TestCase
@@ -120,7 +121,11 @@ class FinancialReportsTest extends TestCase
         $plan = app(StudentPaymentService::class)->createPlan($student, 10000, StudentPaymentPlan::TYPE_FULL);
         $payment = $this->receipt($plan, $owner, '35.00', 'cash');
 
-        Livewire::actingAs($owner)->test(Dashboard::class)->assertSee('LKR 35.00')->assertSee('LKR 65.00')->assertSee($payment->receipt_number);
+        Livewire::actingAs($owner)->test(Dashboard::class)
+            ->assertSee('LKR 35.00')->assertSee('LKR 65.00')->assertSee($payment->receipt_number)
+            ->assertSee('Vehicle Management')
+            ->assertSee('Manage school vehicles, vehicle details, insurance and revenue license documents.')
+            ->assertSee(route('admin.vehicles.index'), false);
         Livewire::actingAs($owner)->test(Overview::class)->assertSee('Payment Method Distribution');
 
         $coach = User::factory()->create();
@@ -130,6 +135,17 @@ class FinancialReportsTest extends TestCase
         $this->actingAs($coach)->get(route('admin.finance.outstanding'))->assertForbidden();
         $this->actingAs($coach)->get(route('admin.finance.exports.transactions'))->assertForbidden();
         $this->actingAs($coach)->get(route('admin.dashboard'))->assertForbidden();
+    }
+
+    public function test_vehicle_dashboard_quick_access_requires_vehicle_view_permission(): void
+    {
+        $owner = $this->owner();
+        $this->ownerRole->revokePermissionTo('vehicles.view');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Livewire::actingAs($owner)->test(Dashboard::class)
+            ->assertDontSee('Vehicle Management')
+            ->assertDontSee(route('admin.vehicles.index'), false);
     }
 
     public function test_empty_financial_reports_render_zero_values(): void

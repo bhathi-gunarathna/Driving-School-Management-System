@@ -30,6 +30,12 @@
         request()->routeIs('admin.students.edit') => 'Edit Student',
         request()->routeIs('admin.students.view') => 'Student Profile',
         request()->routeIs('admin.students.*') => 'Student Management',
+        request()->routeIs('admin.vehicles.create') => 'Add Vehicle',
+        request()->routeIs('admin.vehicles.edit') => 'Edit Vehicle',
+        request()->routeIs('admin.vehicles.view') => 'Vehicle Profile',
+        request()->routeIs('admin.vehicles.expiry') => 'Vehicle Document Expiry',
+        request()->routeIs('admin.vehicles.notifications') => 'Vehicle Alert History',
+        request()->routeIs('admin.vehicles.*') => 'Vehicle Management',
         request()->routeIs('admin.vehicle-categories.create') => 'Create Vehicle Category',
         request()->routeIs('admin.vehicle-categories.edit') => 'Edit Vehicle Category',
         request()->routeIs('admin.vehicle-categories.view') => 'Vehicle Category Details',
@@ -102,6 +108,16 @@
                                 <span aria-hidden="true">▤</span>
                                 <span>Vehicle Categories</span>
                             </a>
+                        @endcan
+
+                        @can('vehicles.view')
+                            <a href="{{ route('admin.vehicles.index') }}"
+                               class="sidebar-link {{ request()->routeIs('admin.vehicles.*') ? 'sidebar-active' : '' }}">
+                                <span aria-hidden="true">V</span>
+                                <span>Vehicles</span>
+                            </a>
+                            <a href="{{ route('admin.vehicles.expiry') }}" class="ml-8 block rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white {{ request()->routeIs('admin.vehicles.expiry') ? 'bg-white/10 text-white' : '' }}">Document Expiry</a>
+                            <a href="{{ route('admin.vehicles.notifications') }}" class="ml-8 block rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white {{ request()->routeIs('admin.vehicles.notifications') ? 'bg-white/10 text-white' : '' }}">Expiry Notification History</a>
                         @endcan
 
                         @can('payments.view')
@@ -255,6 +271,9 @@
                 <a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.dashboard') }}">Dashboard</a>
                 @can('students.view_all')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.students.index') }}">Students</a>@endcan
                 @can('vehicle-categories.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.vehicle-categories.index') }}">Categories</a>@endcan
+                @can('vehicles.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.vehicles.index') }}">Vehicles</a>@endcan
+                @can('vehicles.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.vehicles.expiry') }}">Document Expiry</a>@endcan
+                @can('vehicles.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.vehicles.notifications') }}">Alert History</a>@endcan
                 @can('payments.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.payments.index') }}">Payments</a>@endcan
                 @can('training.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.training.index') }}">Training</a>@endcan
                 @can('trials.view')<a class="whitespace-nowrap rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.trials.index') }}">Trials</a>@endcan

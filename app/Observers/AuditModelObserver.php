@@ -15,6 +15,7 @@ use App\Models\TrialParticipant;
 use App\Models\TrialResultHistory;
 use App\Models\User;
 use App\Models\VehicleCategory;
+use App\Models\Vehicle;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -25,6 +26,7 @@ class AuditModelObserver
         Student::class => ['students', 'student'],
         User::class => ['coaches', 'coach'],
         VehicleCategory::class => ['vehicle-categories', 'vehicle category'],
+        Vehicle::class => ['vehicles', 'vehicle'],
         StudentVehicleCategory::class => ['student-enrollments', 'student category enrollment'],
         StudentPayment::class => ['payments', 'payment receipt'],
         TrainingCoachAssignment::class => ['training', 'coach assignment'],
@@ -111,7 +113,7 @@ class AuditModelObserver
 
     private function sensitive(string $key): bool
     {
-        return preg_match('/password|secret|token|profile_photo|medical_report|remember|two_factor|passkey/i', $key) === 1;
+        return preg_match('/password|secret|token|profile_photo|medical_report|document_path|remember|two_factor|passkey/i', $key) === 1;
     }
 
     private function write(Model $model, string $action, ?array $before, ?array $after): void

@@ -12,16 +12,16 @@ use Throwable;
 
 class SchoolNotificationService
 {
-    public function sendOnce(User $recipient, string $key, string $title, string $message, string $url, string $category): void
+    public function sendOnce(User $recipient, string $key, string $title, string $message, string $url, string $category, array $metadata = []): void
     {
         try {
-            DB::transaction(function () use ($recipient, $key, $title, $message, $url, $category): void {
+            DB::transaction(function () use ($recipient, $key, $title, $message, $url, $category, $metadata): void {
                 $inserted = DB::table('notification_dispatches')->insertOrIgnore([
                     'notifiable_type' => $recipient->getMorphClass(), 'notifiable_id' => $recipient->getKey(),
                     'event_key' => $key, 'created_at' => now(),
                 ]);
                 if ($inserted === 1) {
-                    $recipient->notify(new SchoolNotification($key, $title, $message, $url, $category));
+                    $recipient->notify(new SchoolNotification($key, $title, $message, $url, $category, $metadata));
                 }
             });
         } catch (Throwable $exception) {

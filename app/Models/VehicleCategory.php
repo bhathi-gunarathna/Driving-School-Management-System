@@ -44,4 +44,9 @@ class VehicleCategory extends Model
     {
         return $this->hasMany(StudentVehicleCategory::class, 'vehicle_category_id');
     }
+
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(Vehicle::class);
+    }
 }

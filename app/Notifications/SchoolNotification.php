@@ -9,12 +9,12 @@ class SchoolNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public string $eventKey, public string $title, public string $message, public string $url, public string $category) {}
+    public function __construct(public string $eventKey, public string $title, public string $message, public string $url, public string $category, public array $metadata = []) {}
 
     public function via(object $notifiable): array { return ['database']; }
 
     public function toDatabase(object $notifiable): array
     {
-        return ['event_key' => $this->eventKey, 'title' => $this->title, 'message' => $this->message, 'url' => $this->url, 'category' => $this->category];
+        return array_merge(['event_key' => $this->eventKey, 'title' => $this->title, 'message' => $this->message, 'url' => $this->url, 'category' => $this->category], $this->metadata);
     }
 }

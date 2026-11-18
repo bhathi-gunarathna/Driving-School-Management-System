@@ -5,10 +5,12 @@ namespace App\Livewire\Admin;
 use App\Models\Student;
 use App\Models\StudentPayment;
 use App\Models\StudentPaymentPlan;
+use App\Models\SystemSetting;
 use App\Models\Trial;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\VehicleCategory;
+use App\Services\VehicleDocumentExpiryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -31,6 +33,48 @@ class Dashboard extends Component
         $recentPayments = collect();
         $receivedTotal = 0;
         $outstandingTotal = 0;
+        $vehicleAlertsVisible = $user->hasRole('Owner') && $user->can('vehicles.view');
+        $vehicleSummary = [
+            'active_vehicles' => 0,
+            'expiring_soon' => 0,
+            'expired_documents' => 0,
+            'insurance_expiring' => 0,
+            'licenses_expiring' => 0,
+        ];
+        $vehicleAlerts = collect();
+
+        if ($vehicleAlertsVisible) {
+            $schoolTimezone = SystemSetting::query()->value('timezone');
+            if (! is_string($schoolTimezone) || ! in_array($schoolTimezone, timezone_identifiers_list(), true)) {
+                $schoolTimezone = config('app.timezone', 'Asia/Colombo');
+            }
+            $vehicleToday = CarbonImmutable::now($schoolTimezone)->startOfDay();
+            $todayDate = $vehicleToday->toDateString();
+            $throughDate = $vehicleToday->addDays(30)->toDateString();
+            $documents = DB::query()->fromSub(app(VehicleDocumentExpiryService::class)->documents(true), 'vehicle_documents');
+
+            $vehicleSummary = [
+                'active_vehicles' => DB::table('vehicles')->where('status', 'active')->count(),
+                'expiring_soon' => (clone $documents)->whereDate('expiry_date', '>=', $todayDate)->whereDate('expiry_date', '<=', $throughDate)->count(),
+                'expired_documents' => (clone $documents)->whereDate('expiry_date', '<', $todayDate)->count(),
+                'insurance_expiring' => (clone $documents)->where('document_type', 'insurance')->whereDate('expiry_date', '>=', $todayDate)->whereDate('expiry_date', '<=', $throughDate)->count(),
+                'licenses_expiring' => (clone $documents)->where('document_type', 'revenue_license')->whereDate('expiry_date', '>=', $todayDate)->whereDate('expiry_date', '<=', $throughDate)->count(),
+            ];
+
+            $vehicleAlerts = (clone $documents)
+                ->whereDate('expiry_date', '<=', $throughDate)
+                ->orderBy('expiry_date')
+                ->orderBy('registration_number')
+                ->limit(8)
+                ->get()
+                ->map(function (object $document) use ($vehicleToday, $schoolTimezone): object {
+                    $expiryDate = CarbonImmutable::parse($document->expiry_date, $schoolTimezone)->startOfDay();
+                    $document->days_remaining = (int) $vehicleToday->diffInDays($expiryDate, false);
+
+                    return $document;
+                });
+        }
+
         if ($financeVisible) {
             $from = $today->subDays(6)->toDateString();
             $to = $today->toDateString();
@@ -55,6 +99,10 @@ class Dashboard extends Component
             'upcomingTrialCount' => Trial::upcoming()->count(),
             'todayTrainingCount' => TrainingSession::whereDate('training_date', $today->toDateString())->count(),
             'financeVisible' => $financeVisible,
+            'vehicleAlertsVisible' => $vehicleAlertsVisible,
+            'vehicleSummary' => $vehicleSummary,
+            'vehicleAlerts' => $vehicleAlerts,
+            'vehicleThroughLabel' => isset($vehicleToday) ? $vehicleToday->addDays(30)->format(config('school.date_format', 'd M Y')) : null,
             'receivedTotal' => $receivedTotal,
             'outstandingTotal' => $outstandingTotal,
             'recentPayments' => $recentPayments,
